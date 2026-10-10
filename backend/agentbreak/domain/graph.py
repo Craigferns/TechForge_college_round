@@ -1,113 +1,157 @@
-"""Attack graph generation for individual runs and aggregate findings."""
+"""Pure attack graph domain generator for runs and multi-finding aggregates (PLAN.md §8.4 / M7.2)."""
 
 from __future__ import annotations
 
-from agentbreak.attacks.scenarios import CASE_VECTOR_MAP
-from agentbreak.schemas.finding import AttackGraph, Finding, GraphEdge, GraphNode
-from agentbreak.schemas.run import Run, TraceStep, Verdict
+import sqlite3
+
+from agentbreak.attacks.scenarios import CASE_VECTOR_MAP, get_attack_case, get_scenario
+from agentbreak.repo.finding_repo import FindingRepo
+from agentbreak.repo.run_repo import RunRepo
+from agentbreak.schemas.finding import AttackGraph, GraphEdge, GraphNode
 
 
-def build_run_attack_graph(
-    run: Run,
-    trace_steps: list[TraceStep],
-    verdict: Verdict | None = None,
-) -> AttackGraph:
-    """Construct causal attack graph for an individual evaluation run."""
-    case_id = run.case_id or "AS-04"
+def build_run_graph(run_id: str, conn: sqlite3.Connection) -> AttackGraph:
+    """Build causal attack graph for a single run: vector -> tool_result(injected) -> tool_call(unauthorized) -> impact."""
+    run_repo = RunRepo(conn)
+    run = run_repo.get(run_id)
+    if not run:
+        return AttackGraph(nodes=[], edges=[])
 
-    vector_name = CASE_VECTOR_MAP.get(case_id, "inj_email_body")
-    severity = (verdict.severity if verdict else None) or "high"
+    nodes: list[GraphNode] = []
+    edges: list[GraphEdge] = []
 
-    # Identify injected tool result and unauthorized tool call from trace
-    inj_step = None
-    unauth_step = None
+    # 1. Vector node
+    vector = "inj_email_body"
+    if run.case_id:
+        vector = CASE_VECTOR_MAP.get(run.case_id, vector)
+    vector_node_id = f"vec_{vector}"
+    nodes.append(GraphNode(id=vector_node_id, label=f"Vector: {vector}", type="vector", count=1))
 
-    for step in trace_steps:
-        if step.flags.get("injected"):
-            inj_step = step
-        if step.flags.get("unauthorized"):
-            unauth_step = step
+    # 2. Inspect trace steps for injected tool result and unauthorized tool call
+    trace = run_repo.get_trace(run_id)
+    injected_step = next((s for s in trace if s.flags.get("injected")), None)
+    unauthorized_step = next((s for s in trace if s.flags.get("unauthorized")), None)
 
-    inj_tool_name = (inj_step.tool if inj_step else None) or (
-        "read_file" if "doc" in vector_name else "read_email"
+    last_node_id = vector_node_id
+
+    if injected_step:
+        inj_node_id = f"step_{injected_step.idx}"
+        inj_label = f"{injected_step.tool or 'carrier'} result (injected)"
+        nodes.append(GraphNode(id=inj_node_id, label=inj_label, type="tool", count=1))
+        edges.append(GraphEdge(source=last_node_id, target=inj_node_id, label="carried_by"))
+        last_node_id = inj_node_id
+
+    if unauthorized_step:
+        unauth_node_id = f"step_{unauthorized_step.idx}"
+        denied = bool(unauthorized_step.flags.get("denied"))
+        unauth_label = (
+            f"{unauthorized_step.tool} call ({'denied by policy' if denied else 'unauthorized'})"
+        )
+        nodes.append(GraphNode(id=unauth_node_id, label=unauth_label, type="tool", count=1))
+        edges.append(GraphEdge(source=last_node_id, target=unauth_node_id, label="triggered"))
+        last_node_id = unauth_node_id
+
+    # 3. Impact node
+    impact_class = "unauthorized_action"
+    severity = "medium"
+    if run.scenario_id:
+        try:
+            sc = get_scenario(run.scenario_id)
+            impact_class = sc.impact_class
+            severity = sc.severity
+        except KeyError:
+            pass
+
+    # Only a confirmed verdict earns an impact node: no edge is drawn for harm that did not happen.
+    verdict = run_repo.get_verdict(run_id)
+    if not (verdict and verdict.success):
+        return AttackGraph(nodes=nodes, edges=edges)
+
+    impact_node_id = f"impact_{impact_class}"
+    nodes.append(
+        GraphNode(
+            id=impact_node_id,
+            label=f"Impact: {impact_class}",
+            type="impact",
+            severity=severity,
+            count=1,
+        )
     )
-    unauth_tool_name = (unauth_step.tool if unauth_step else None) or "delete_file"
-
-    impact_label = "Destructive Impact (File Deleted)"
-    if case_id in ("AS-01", "AS-02"):
-        impact_label = "Data Exfiltration (Credential Canary Exfiltrated)"
-    elif case_id == "AS-03":
-        impact_label = "Data Exfiltration (Drive ACL Expanded)"
-    elif case_id == "AS-04":
-        impact_label = "Destructive Impact (File Deleted)"
-    elif case_id == "AS-05":
-        impact_label = "Persistence / Covert Exfiltration Triggered"
-    elif case_id in ("AS-06", "AS-07"):
-        impact_label = "Privilege Escalation (Admin Role Assigned)"
-
-    vec_label = f"Vector: {vector_name}"
-    if "doc" in vector_name:
-        vec_label = "Vector: f-004 doc_content"
-    elif "email" in vector_name:
-        vec_label = "Vector: e-1003 email_body"
-
-    nodes = [
-        GraphNode(id="n1", label=vec_label, type="vector", severity=severity, count=1),
-        GraphNode(
-            id="n2",
-            label=f"{inj_tool_name} -> Injected",
-            type="tool",
-            severity=severity,
-            count=1,
-        ),
-        GraphNode(
-            id="n3",
-            label=f"{unauth_tool_name} -> Unauthorized",
-            type="tool",
-            severity=severity,
-            count=1,
-        ),
-        GraphNode(id="n4", label=impact_label, type="impact", severity=severity, count=1),
-    ]
-
-    edges = [
-        GraphEdge(source="n1", target="n2", label="payload ingested"),
-        GraphEdge(source="n2", target="n3", label="caused_by"),
-        GraphEdge(source="n3", target="n4", label="state diff confirmed"),
-    ]
+    edges.append(GraphEdge(source=last_node_id, target=impact_node_id, label="caused"))
 
     return AttackGraph(nodes=nodes, edges=edges)
 
 
-def build_aggregate_attack_graph(findings: list[Finding]) -> AttackGraph:
-    """Construct multi-finding aggregate attack graph across all evaluated vulnerabilities."""
-    if not findings:
-        return AttackGraph(nodes=[], edges=[])
+def build_aggregate_graph(conn: sqlite3.Connection, target_id: str | None = None) -> AttackGraph:
+    """Build aggregated attack graph with nodes keyed by (vector), (tool), and (impact_class) with counts across findings."""
+    finding_repo = FindingRepo(conn)
+    findings, _ = finding_repo.list_findings(target_id=target_id, limit=500)
 
-    # Count vectors, tools, and impacts across findings
+    vector_counts: dict[str, int] = {}
+    tool_counts: dict[str, int] = {}
+    impact_counts: dict[str, tuple[int, str]] = {}  # impact -> (count, severity)
+    vector_to_tool: dict[tuple[str, str], int] = {}
+    tool_to_impact: dict[tuple[str, str], int] = {}
+
+    for f in findings:
+        case = None
+        try:
+            case = get_attack_case(f.case_id)
+            get_scenario(f.scenario_id)
+        except KeyError:
+            continue
+
+        vector = CASE_VECTOR_MAP.get(case.id, "inj_email_body")
+        impact = f.impact_class
+        severity = f.severity
+
+        vector_counts[vector] = vector_counts.get(vector, 0) + f.occurrences
+        cur_imp = impact_counts.get(impact, (0, severity))
+        impact_counts[impact] = (cur_imp[0] + f.occurrences, severity)
+
+        # Primary enabling tool or carrier tool
+        tool = f.enabling_permissions[0] if f.enabling_permissions else "agent_tools"
+        tool_counts[tool] = tool_counts.get(tool, 0) + f.occurrences
+
+        vector_to_tool[(vector, tool)] = vector_to_tool.get((vector, tool), 0) + f.occurrences
+        tool_to_impact[(tool, impact)] = tool_to_impact.get((tool, impact), 0) + f.occurrences
+
     nodes: list[GraphNode] = []
     edges: list[GraphEdge] = []
 
-    vector_counts: dict[str, int] = {}
-    impact_counts: dict[str, int] = {}
-
-    for f in findings:
-        vec = CASE_VECTOR_MAP.get(f.case_id, "inj_email_body")
-        vector_counts[vec] = vector_counts.get(vec, 0) + f.occurrences
-        impact_counts[f.impact_class] = impact_counts.get(f.impact_class, 0) + f.occurrences
-
     for vec, count in vector_counts.items():
-        nodes.append(GraphNode(id=f"v_{vec}", label=f"Vector: {vec}", type="vector", count=count))
+        nodes.append(GraphNode(id=f"vec_{vec}", label=f"Vector: {vec}", type="vector", count=count))
 
-    for imp, count in impact_counts.items():
-        nodes.append(GraphNode(id=f"i_{imp}", label=f"Impact: {imp}", type="impact", count=count))
+    for tool, count in tool_counts.items():
+        nodes.append(GraphNode(id=f"tool_{tool}", label=f"Tool: {tool}", type="tool", count=count))
 
-    # Connect vectors to impacts with aggregate edges
-    for f in findings:
-        vec = CASE_VECTOR_MAP.get(f.case_id, "inj_email_body")
-        src_id = f"v_{vec}"
-        tgt_id = f"i_{f.impact_class}"
-        if not any(e.source == src_id and e.target == tgt_id for e in edges):
-            edges.append(GraphEdge(source=src_id, target=tgt_id, label="exploited_via"))
+    for imp, (count, sev) in impact_counts.items():
+        nodes.append(
+            GraphNode(
+                id=f"impact_{imp}",
+                label=f"Impact: {imp}",
+                type="impact",
+                severity=sev,
+                count=count,
+            )
+        )
+
+    for (vec, tool), count in vector_to_tool.items():
+        edges.append(
+            GraphEdge(
+                source=f"vec_{vec}",
+                target=f"tool_{tool}",
+                label=f"exploits ({count})",
+            )
+        )
+
+    for (tool, imp), count in tool_to_impact.items():
+        edges.append(
+            GraphEdge(
+                source=f"tool_{tool}",
+                target=f"impact_{imp}",
+                label=f"causes ({count})",
+            )
+        )
 
     return AttackGraph(nodes=nodes, edges=edges)

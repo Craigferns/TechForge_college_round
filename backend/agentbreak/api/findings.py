@@ -1,8 +1,4 @@
-"""Findings and aggregate graph endpoints."""
-
-from __future__ import annotations
-
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, HTTPException, status
 
 from agentbreak.api.deps import DbDep
 from agentbreak.repo.finding_repo import FindingRepo
@@ -15,34 +11,23 @@ router = APIRouter(tags=["findings"])
 def list_findings(
     db: DbDep,
     severity: str | None = None,
-    status_filter: str | None = Query(default=None, alias="status"),
+    status_filter: str | None = None,
     scenario_id: str | None = None,
     target_id: str | None = None,
     limit: int = 50,
     offset: int = 0,
 ) -> Page[Finding]:
-    """List deduplicated vulnerability findings with severity and scenario filters."""
+    """List deduplicated vulnerability findings with severity filters."""
     repo = FindingRepo(db)
-    items = repo.list_findings(
-        target_id=target_id,
-        scenario_id=scenario_id,
+    items, total = repo.list_findings(
         severity=severity,
         status_filter=status_filter,
+        scenario_id=scenario_id,
+        target_id=target_id,
         limit=limit,
         offset=offset,
     )
-    total = repo.count_findings(
-        target_id=target_id,
-        scenario_id=scenario_id,
-        severity=severity,
-        status_filter=status_filter,
-    )
-    return Page[Finding](
-        items=items,
-        total=total,
-        limit=limit,
-        offset=offset,
-    )
+    return Page[Finding](items=items, total=total, limit=limit, offset=offset)
 
 
 @router.get("/findings/{finding_id}", response_model=Finding)
@@ -60,10 +45,10 @@ def get_finding(finding_id: str, db: DbDep) -> Finding:
 
 @router.patch("/findings/{finding_id}", response_model=Finding)
 def update_finding(finding_id: str, body: FindingUpdate, db: DbDep) -> Finding:
-    """Update status (e.g. open, accepted_risk) on a finding."""
+    """Update status (open, acknowledged, fixed, dismissed) or notes on a finding."""
     repo = FindingRepo(db)
-    finding = repo.get(finding_id)
-    if not finding:
+    existing = repo.get(finding_id)
+    if not existing:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Finding '{finding_id}' not found.",
@@ -71,8 +56,8 @@ def update_finding(finding_id: str, body: FindingUpdate, db: DbDep) -> Finding:
     updated = repo.update_status(finding_id, body.status)
     if not updated:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Finding '{finding_id}' could not be updated.",
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to update finding status.",
         )
     return updated
 
@@ -80,8 +65,6 @@ def update_finding(finding_id: str, body: FindingUpdate, db: DbDep) -> Finding:
 @router.get("/graph", response_model=AttackGraph)
 def get_aggregate_graph(db: DbDep, target_id: str | None = None) -> AttackGraph:
     """Retrieve multi-finding aggregated attack graph across all evaluated scenarios."""
-    from agentbreak.domain.graph import build_aggregate_attack_graph
+    from agentbreak.domain.graph import build_aggregate_graph
 
-    repo = FindingRepo(db)
-    findings = repo.list_findings(target_id=target_id, limit=100)
-    return build_aggregate_attack_graph(findings)
+    return build_aggregate_graph(db, target_id=target_id)

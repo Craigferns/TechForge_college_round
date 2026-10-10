@@ -1,278 +1,222 @@
-"""Fix evaluation engine executing candidate fixes, measuring price tags, and applying policies."""
+"""Fix evaluation engine deriving price tags and applying policy mitigations (PLAN.md §11 / Phase 9)."""
 
 from __future__ import annotations
 
 import datetime
 import sqlite3
 import uuid
-from typing import Any
 
-from agentbreak.domain.policy import compute_policy_hash
-from agentbreak.domain.pricing import GOLDEN_FIX_TABLE, compute_pareto_dominance
+from agentbreak.config import get_settings
+from agentbreak.db import get_connection
+from agentbreak.domain.pricing import compute_pareto_dominance
+from agentbreak.engine.measure import child_policy, measure_policy
 from agentbreak.repo.finding_repo import FindingRepo
 from agentbreak.repo.fix_repo import FixRepo
 from agentbreak.repo.policy_repo import PolicyRepo
 from agentbreak.repo.target_repo import TargetRepo
+from agentbreak.schemas.audit import PermissionAudit
 from agentbreak.schemas.fix import (
     FixEval,
     FixEvalCreate,
     FixEvalDetails,
     FixSpec,
+    FixSuggestion,
     PriceTag,
 )
 from agentbreak.schemas.policy import ArgConstraint, Grant, Policy
+from agentbreak.targets.base import BaseTarget
 
 
-def build_child_policy_for_fix(
-    base_policy: Policy,
-    fix: FixSpec,
-    policy_repo: PolicyRepo,
-) -> Policy:
-    """Construct child policy corresponding to the fix specification."""
-    now = datetime.datetime.now(datetime.UTC).isoformat()
-    child_grants: list[Grant] = []
+def utc_now_iso() -> str:
+    return datetime.datetime.now(datetime.UTC).isoformat()
 
-    if fix.kind == "remove_permission":
-        for g in base_policy.grants:
-            if g.tool != fix.tool:
-                child_grants.append(g)
-        p_name = f"Policy without {fix.tool}"
 
-    elif fix.kind == "restrict_arg":
-        if fix.tool == "combined":
-            # Combined hardening: remove delete_file & set_role + both restrictions
-            for g in base_policy.grants:
-                if g.tool in ("delete_file", "set_role"):
-                    continue
-                elif g.tool == "send_email":
-                    child_grants.append(
-                        Grant(
-                            tool="send_email",
-                            constraints=[
-                                ArgConstraint(
-                                    arg="to",
-                                    kind="domain_allowlist",
-                                    values=["acme.test", "partnerco.test"],
-                                ),
-                                ArgConstraint(
-                                    arg="bcc",
-                                    kind="domain_allowlist",
-                                    values=["acme.test", "partnerco.test"],
-                                ),
-                            ],
-                        )
-                    )
-                elif g.tool == "share_file":
-                    child_grants.append(
-                        Grant(
-                            tool="share_file",
-                            constraints=[
-                                ArgConstraint(
-                                    arg="principal",
-                                    kind="domain_allowlist",
-                                    values=["acme.test"],
-                                ),
-                            ],
-                        )
-                    )
-                else:
-                    child_grants.append(g)
-            p_name = "Hardened Policy (Combined Defenses)"
-        else:
-            for g in base_policy.grants:
-                if g.tool == fix.tool:
-                    constraints = [
-                        ArgConstraint(
-                            arg=a,
-                            kind="domain_allowlist",
-                            values=fix.domains,
-                        )
+IMPLEMENTED_FIX_KINDS = ("remove_permission", "restrict_arg")
+
+
+def _fixed_grants(base: Policy, fix: FixSpec) -> list[Grant]:
+    if fix.kind not in IMPLEMENTED_FIX_KINDS:
+        # Fail closed: an unimplemented fix would otherwise "evaluate" as a no-op policy.
+        raise ValueError(f"Fix kind '{fix.kind}' is not implemented; only {IMPLEMENTED_FIX_KINDS}.")
+    if not fix.tool or fix.tool not in {g.tool for g in base.grants}:
+        raise ValueError(f"Tool '{fix.tool}' is not granted by policy '{base.id}'.")
+    if fix.kind == "restrict_arg" and (not fix.args or not fix.domains):
+        raise ValueError("restrict_arg needs at least one arg and one allowed domain.")
+    grants: list[Grant] = []
+    for g in base.grants:
+        if g.tool != fix.tool:
+            grants.append(g)
+        elif fix.kind == "restrict_arg":
+            grants.append(
+                Grant(
+                    tool=g.tool,
+                    constraints=[
+                        ArgConstraint(arg=a, kind="domain_allowlist", values=fix.domains)
                         for a in fix.args
-                    ]
-                    child_grants.append(Grant(tool=g.tool, constraints=constraints))
-                else:
-                    child_grants.append(g)
-            p_name = f"Policy restricted {fix.tool}"
-    else:
-        # defense or prompt_hardening doesn't change grants
-        child_grants = list(base_policy.grants)
-        p_name = f"Policy with {fix.kind}"
-
-    p_hash = compute_policy_hash(child_grants)
-    existing = policy_repo.get_by_hash(p_hash)
-    if existing:
-        return existing
-
-    child_id = f"pol_fix_{uuid.uuid4().hex[:8]}"
-    return policy_repo.create(
-        Policy(
-            id=child_id,
-            name=p_name,
-            parent_id=base_policy.id,
-            grants=child_grants,
-            hash=p_hash,
-            created_at=now,
-        )
-    )
+                    ],
+                )
+            )
+    return grants
 
 
-def match_golden_fix(fix: FixSpec) -> dict[str, Any] | None:
-    """Find golden table entry matching the given fix specification."""
-    for _key, entry in GOLDEN_FIX_TABLE.items():
-        g_fix = entry["fix"]
-        if g_fix.kind == fix.kind and g_fix.tool == fix.tool:
-            if fix.kind == "restrict_arg":
-                if set(g_fix.domains) == set(fix.domains):
-                    return entry
-            else:
-                return entry
-    return None
-
-
-def evaluate_single_fix(
-    body: FixEvalCreate,
-    conn: sqlite3.Connection,
+def evaluate_fix(
+    create_input: FixEvalCreate,
     audit_id: str | None = None,
+    conn: sqlite3.Connection | None = None,
+    target_override: BaseTarget | None = None,
     retest_of: str | None = None,
 ) -> FixEval:
-    """Evaluate candidate fix against attack corpus and benign tasks."""
-    fix_repo = FixRepo(conn)
-    policy_repo = PolicyRepo(conn)
+    """Measure a fix: run every attack and benign task under the base and the fixed policy.
 
-    now = datetime.datetime.now(datetime.UTC).isoformat()
-    eval_id = f"fix_{uuid.uuid4().hex[:8]}"
-
-    base_policy = policy_repo.get(body.base_policy_id)
-    if not base_policy:
-        raise ValueError(f"Base policy '{body.base_policy_id}' not found.")
-
-    child_policy = build_child_policy_for_fix(base_policy, body.fix, policy_repo)
-
-    # Resolve outcomes from golden table for scripted target
-    golden_entry = match_golden_fix(body.fix)
-    if golden_entry:
-        blocked = list(golden_entry["blocked_cases"])
-        still = list(golden_entry["still_exploitable"])
-        broken = list(golden_entry["broken_tasks"])
-    else:
-        blocked = []
-        still = ["AS-01", "AS-02", "AS-03", "AS-04", "AS-05", "AS-06", "AS-07"]
-        broken = []
-
-    price_tag = PriceTag(
-        attacks_blocked=len(blocked),
-        attacks_total=len(blocked) + len(still),
-        tasks_broken=len(broken),
-        benign_total=10,
-        pareto=False,
-    )
-    details = FixEvalDetails(
-        blocked_cases=blocked,
-        still_exploitable=still,
-        broken_tasks=broken,
-    )
-
-    fix_eval = FixEval(
-        id=eval_id,
-        audit_id=audit_id,
-        target_id=body.target_id,
-        base_policy_id=body.base_policy_id,
-        fix=body.fix,
-        result_policy_id=child_policy.id,
-        trials=body.trials,
-        status="done",
-        price_tag=price_tag,
-        details=details,
-        retest_of=retest_of,
-        created_at=now,
-        finished_at=now,
-    )
-    return fix_repo.create(fix_eval)
-
-
-def evaluate_all_suggestions(
-    audit_id: str,
-    conn: sqlite3.Connection,
-) -> list[FixEval]:
-    """Evaluate all fixes suggested by an audit and calculate Pareto dominance across them."""
-    from agentbreak.domain.candidate_fixes import generate_candidate_fixes
-    from agentbreak.repo.audit_repo import AuditRepo
-
-    audit_repo = AuditRepo(conn)
-    audit = audit_repo.get(audit_id)
-    if not audit:
-        raise ValueError(f"Audit '{audit_id}' not found.")
-
-    suggestions = generate_candidate_fixes(audit, target_kind="scripted")
-    # Also include the combined hardening candidate
-    suggestions.append(
-        type(suggestions[0])(
-            id="fix_combined_hardening",
-            fix=GOLDEN_FIX_TABLE["combined_hardening"]["fix"],
-            title="Combined Hardening",
-            description="Removes excess tools and restricts file/email domains.",
-            targeted_exploits=["AS-01", "AS-02", "AS-03", "AS-04", "AS-05", "AS-06", "AS-07"],
+    blocked  = exploited under base AND resisted under fix (errored runs excluded)
+    broken   = passed under base AND failed under fix (errored runs excluded)
+    The denominators are what actually succeeded/passed under the base policy.
+    """
+    settings = get_settings()
+    owns_conn = conn is None
+    active_conn = conn if conn is not None else get_connection(settings.db_path)
+    try:
+        policy_repo = PolicyRepo(active_conn)
+        base = policy_repo.get(create_input.base_policy_id)
+        if base is None:
+            raise ValueError(f"Policy '{create_input.base_policy_id}' not found.")
+        fix = create_input.fix
+        fixed = child_policy(
+            active_conn, base, _fixed_grants(base, fix), f"{base.name} + {fix.kind}:{fix.tool}"
         )
-    )
+        fix_id = f"fix_{uuid.uuid4().hex[:8]}"
+        tag: dict[str, object] = {"fix_eval_id": fix_id}
+        before = measure_policy(base.id, create_input.target_id, active_conn, target_override, tag)
+        after = measure_policy(fixed.id, create_input.target_id, active_conn, target_override, tag)
 
-    evals: list[FixEval] = []
-    for sug in suggestions:
-        create_body = FixEvalCreate(
-            target_id=audit.target_id,
-            base_policy_id=audit.policy_id,
-            fix=sug.fix,
+        blocked = sorted(before.exploited & after.resisted)
+        broken = sorted(before.benign_passed & after.benign_failed)
+        fix_eval = FixEval(
+            id=fix_id,
+            audit_id=audit_id,
+            target_id=create_input.target_id,
+            base_policy_id=base.id,
+            fix=fix,
+            result_policy_id=fixed.id,
+            trials=create_input.trials,
+            status="done",
+            price_tag=PriceTag(
+                attacks_blocked=len(blocked),
+                attacks_total=len(before.exploited),
+                tasks_broken=len(broken),
+                benign_total=len(before.benign_passed),
+            ),
+            details=FixEvalDetails(
+                blocked_cases=blocked,
+                still_exploitable=sorted(after.exploited),
+                broken_tasks=broken,
+                inconclusive=sorted(before.inconclusive | after.inconclusive),
+                sleeper_outcome=after.sleeper_outcome,
+                run_ids=list(after.run_ids),
+                before_runs=dict(before.keyed_runs),
+                after_runs=dict(after.keyed_runs),
+            ),
+            retest_of=retest_of,
+            created_at=utc_now_iso(),
+            finished_at=utc_now_iso(),
         )
-        ev = evaluate_single_fix(create_body, conn=conn, audit_id=audit_id)
-        evals.append(ev)
+        fix_repo = FixRepo(active_conn)
+        fix_repo.create(fix_eval)
+        _refresh_pareto(fix_repo, fix_eval.target_id, base.id)
+        return fix_repo.get(fix_id) or fix_eval
+    finally:
+        if owns_conn:
+            active_conn.close()
 
-    # Compute set-based Pareto dominance
-    eval_dicts = [
-        {
-            "blocked_cases": ev.details.blocked_cases if ev.details else [],
-            "broken_tasks": ev.details.broken_tasks if ev.details else [],
-        }
-        for ev in evals
+
+def _refresh_pareto(fix_repo: FixRepo, target_id: str, base_policy_id: str) -> None:
+    """Recompute set-based Pareto flags (PLAN §11.2) across fixes of the same base policy."""
+    siblings = [
+        f
+        for f in fix_repo.list(target_id=target_id, limit=500)[0]
+        if f.base_policy_id == base_policy_id and f.details is not None
     ]
-    pareto_flags = compute_pareto_dominance(eval_dicts)
+    flags = compute_pareto_dominance(
+        [
+            {"blocked_cases": f.details.blocked_cases, "broken_tasks": f.details.broken_tasks}
+            for f in siblings
+            if f.details is not None
+        ]
+    )
+    for f, flag in zip(siblings, flags, strict=True):
+        fix_repo.set_pareto(f.id, flag)
 
-    fix_repo = FixRepo(conn)
-    for ev, flag in zip(evals, pareto_flags, strict=False):
-        if ev.price_tag:
-            ev.price_tag.pareto = flag
-            fix_repo.update(ev)
 
-    return evals
+def suggest_fixes(audit: PermissionAudit) -> list[FixSuggestion]:
+    """Candidate fixes derived only from the audit's measured evidence."""
+    out: list[FixSuggestion] = []
+    for row in audit.rows:
+        cases = [e.case_id for e in row.enabled_exploits]
+        if not cases:
+            continue
+        out.append(
+            FixSuggestion(
+                id=f"sug_{len(out) + 1:02d}",
+                fix=FixSpec(kind="remove_permission", tool=row.tool),
+                title=f"Remove '{row.tool}'",
+                description=(
+                    f"Revoke '{row.tool}'. Counterfactual runs show it enables {', '.join(cases)}; "
+                    f"benign tasks using it: {', '.join(row.used_by_benign) or 'none'}."
+                ),
+                targeted_exploits=cases,
+            )
+        )
+    for row in audit.rows:
+        scope = row.suggested_scope
+        if scope is None:
+            continue
+        out.append(
+            FixSuggestion(
+                id=f"sug_{len(out) + 1:02d}",
+                fix=FixSpec(
+                    kind="restrict_arg",
+                    tool=row.tool,
+                    args=scope.args,
+                    domains=scope.domain_allowlist,
+                ),
+                title=f"Restrict '{row.tool}' {scope.args} to {scope.domain_allowlist}",
+                description=(
+                    f"Allow only the domains legitimate tasks were observed using "
+                    f"({', '.join(scope.domain_allowlist)}) on every recipient argument."
+                ),
+                targeted_exploits=[e.case_id for e in row.enabled_exploits],
+            )
+        )
+    return out
 
 
-def apply_fix_evaluation(
-    eval_id: str,
-    conn: sqlite3.Connection,
-) -> dict[str, str]:
-    """Apply the evaluated fix: set child policy as active on the target and update findings to 'fixed'."""
+def apply_fix_eval(fix_eval_id: str, conn: sqlite3.Connection) -> Policy:
+    """Apply evaluated fix: updates target's active_policy_id and transitions finding statuses to 'fixed'."""
     fix_repo = FixRepo(conn)
     target_repo = TargetRepo(conn)
+    policy_repo = PolicyRepo(conn)
     finding_repo = FindingRepo(conn)
 
-    fix_eval = fix_repo.get(eval_id)
+    fix_eval = fix_repo.get(fix_eval_id)
     if not fix_eval:
-        raise ValueError(f"Fix evaluation '{eval_id}' not found.")
+        raise ValueError(f"FixEval '{fix_eval_id}' not found.")
 
     if not fix_eval.result_policy_id:
-        raise ValueError("Fix evaluation does not have an associated result policy.")
+        raise ValueError(f"FixEval '{fix_eval_id}' has no result policy.")
 
-    # 1. Update target active policy
-    target_repo.update_active_policy(fix_eval.target_id, fix_eval.result_policy_id)
+    result_policy = policy_repo.get(fix_eval.result_policy_id)
+    if not result_policy:
+        raise ValueError(f"Result policy '{fix_eval.result_policy_id}' not found.")
 
-    # 2. Update status of blocked findings to 'fixed'
+    # 1. Update target's active_policy_id
+    target_repo.update_active_policy(fix_eval.target_id, result_policy.id)
+
+    # 2. Transition findings for blocked cases to 'fixed'
     blocked_cases = fix_eval.details.blocked_cases if fix_eval.details else []
-    for case_id in blocked_cases:
-        findings = finding_repo.list_findings(target_id=fix_eval.target_id, limit=50)
-        for f in findings:
-            if f.case_id == case_id:
-                finding_repo.update_status(f.id, "fixed")
+    findings, _ = finding_repo.list_findings(target_id=fix_eval.target_id, limit=200)
 
-    return {
-        "status": "applied",
-        "target_id": fix_eval.target_id,
-        "active_policy_id": fix_eval.result_policy_id,
-    }
+    for f in findings:
+        if f.case_id in blocked_cases:
+            finding_repo.update_status(f.id, "fixed")
+
+    return result_policy

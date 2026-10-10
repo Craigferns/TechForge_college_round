@@ -1,15 +1,9 @@
-"""Permission audit and attribution endpoints."""
-
-from __future__ import annotations
-
 from fastapi import APIRouter, HTTPException, status
 
 from agentbreak.api.deps import DbDep
-from agentbreak.domain.candidate_fixes import generate_candidate_fixes
-from agentbreak.engine.audit import run_permission_audit
+from agentbreak.engine.audit import execute_permission_audit
+from agentbreak.engine.fixes import suggest_fixes
 from agentbreak.repo.audit_repo import AuditRepo
-from agentbreak.repo.policy_repo import PolicyRepo
-from agentbreak.repo.target_repo import TargetRepo
 from agentbreak.schemas import AuditCreate, FixSuggestion, Page, PermissionAudit
 
 router = APIRouter(prefix="/audits", tags=["audits"])
@@ -18,24 +12,7 @@ router = APIRouter(prefix="/audits", tags=["audits"])
 @router.post("", response_model=PermissionAudit, status_code=status.HTTP_202_ACCEPTED)
 def create_audit(body: AuditCreate, db: DbDep) -> PermissionAudit:
     """Trigger a permission attribution audit comparing granted vs needed tools."""
-    target_repo = TargetRepo(db)
-    policy_repo = PolicyRepo(db)
-
-    target = target_repo.get(body.target_id)
-    if not target:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Target '{body.target_id}' not found.",
-        )
-
-    policy = policy_repo.get(body.policy_id)
-    if not policy:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Policy '{body.policy_id}' not found.",
-        )
-
-    return run_permission_audit(body, conn=db)
+    return execute_permission_audit(body, conn=db)
 
 
 @router.get("", response_model=Page[PermissionAudit])
@@ -47,14 +24,8 @@ def list_audits(
 ) -> Page[PermissionAudit]:
     """List permission attribution audit jobs."""
     repo = AuditRepo(db)
-    items = repo.list_audits(target_id=target_id, limit=limit, offset=offset)
-    total = repo.count_audits(target_id=target_id)
-    return Page[PermissionAudit](
-        items=items,
-        total=total,
-        limit=limit,
-        offset=offset,
-    )
+    items, total = repo.list(target_id=target_id, limit=limit, offset=offset)
+    return Page[PermissionAudit](items=items, total=total, limit=limit, offset=offset)
 
 
 @router.get("/{audit_id}", response_model=PermissionAudit)
@@ -72,27 +43,36 @@ def get_audit(audit_id: str, db: DbDep) -> PermissionAudit:
 
 @router.get("/{audit_id}/fixes", response_model=list[FixSuggestion])
 def list_fix_suggestions(audit_id: str, db: DbDep) -> list[FixSuggestion]:
-    """List candidate policy fixes suggested by the audit findings."""
-    audit_repo = AuditRepo(db)
-    target_repo = TargetRepo(db)
-
-    audit = audit_repo.get(audit_id)
+    """List candidate policy fixes suggested deterministically by the audit findings."""
+    audit = AuditRepo(db).get(audit_id)
     if not audit:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Audit '{audit_id}' not found.",
         )
-
-    target = target_repo.get(audit.target_id)
-    target_kind = target.kind if target else "scripted"
-
-    return generate_candidate_fixes(audit, target_kind=target_kind)
+    return suggest_fixes(audit)
 
 
 @router.post("/{audit_id}/fixes/evaluate-all", status_code=status.HTTP_202_ACCEPTED)
 def evaluate_all_fixes(audit_id: str, db: DbDep) -> dict[str, list[str]]:
     """Queue parallel price tag evaluation for all suggested fixes."""
-    from agentbreak.engine.fixes import evaluate_all_suggestions
+    suggestions = list_fix_suggestions(audit_id, db)
+    audit = get_audit(audit_id, db)
 
-    evals = evaluate_all_suggestions(audit_id, conn=db)
-    return {"eval_ids": [ev.id for ev in evals]}
+    from agentbreak.engine.fixes import evaluate_fix
+    from agentbreak.schemas.fix import FixEvalCreate
+
+    eval_ids: list[str] = []
+    for sug in suggestions:
+        eval_res = evaluate_fix(
+            FixEvalCreate(
+                target_id=audit.target_id,
+                base_policy_id=audit.policy_id,
+                fix=sug.fix,
+            ),
+            audit_id=audit_id,
+            conn=db,
+        )
+        eval_ids.append(eval_res.id)
+
+    return {"fix_eval_ids": eval_ids}

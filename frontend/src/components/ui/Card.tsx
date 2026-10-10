@@ -1,51 +1,26 @@
 import React from "react";
 import { cn } from "../../lib/utils";
 
-export interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
-  glow?: boolean;
-}
+export const Card: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ className, children, ...props }) => (
+  <section className={cn("rounded-lg border border-line bg-surface p-4 sm:p-5", className)} {...props}>
+    {children}
+  </section>
+);
 
-export const Card: React.FC<CardProps> = ({ className, glow = false, children, ...props }) => {
-  return (
-    <div
-      className={cn(
-        "rounded-2xl border border-slate-800/80 bg-slate-900/60 p-6 backdrop-blur-sm transition-all duration-200",
-        glow && "border-emerald-500/30 shadow-lg shadow-emerald-500/5",
-        className
-      )}
-      {...props}
-    >
-      {children}
-    </div>
-  );
-};
-
-export const CardHeader: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({
-  className,
-  children,
-  ...props
-}) => (
-  <div className={cn("flex flex-col space-y-1.5 pb-4", className)} {...props}>
+export const CardHeader: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ className, children, ...props }) => (
+  <div className={cn("flex flex-col gap-1 pb-3", className)} {...props}>
     {children}
   </div>
 );
 
-export const CardTitle: React.FC<React.HTMLAttributes<HTMLHeadingElement>> = ({
-  className,
-  children,
-  ...props
-}) => (
-  <h3 className={cn("text-lg font-semibold tracking-tight text-white", className)} {...props}>
+export const CardTitle: React.FC<React.HTMLAttributes<HTMLHeadingElement>> = ({ className, children, ...props }) => (
+  <h2 className={cn("text-sm font-semibold text-ink", className)} {...props}>
     {children}
-  </h3>
+  </h2>
 );
 
-export const CardDescription: React.FC<React.HTMLAttributes<HTMLParagraphElement>> = ({
-  className,
-  children,
-  ...props
-}) => (
-  <p className={cn("text-xs text-slate-400 leading-relaxed", className)} {...props}>
+export const CardDescription: React.FC<React.HTMLAttributes<HTMLParagraphElement>> = ({ className, children, ...props }) => (
+  <p className={cn("text-xs text-ink-2 leading-relaxed", className)} {...props}>
     {children}
   </p>
 );

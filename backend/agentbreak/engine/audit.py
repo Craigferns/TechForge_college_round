@@ -1,163 +1,192 @@
-"""Permission audit engine executing minimal policy generation, counterfactual attribution, and proof verification."""
+"""Permission audit execution engine (PLAN.md §10 / Phase 8)."""
 
 from __future__ import annotations
 
 import datetime
 import sqlite3
 import uuid
+from typing import Literal
 
-from agentbreak.domain.attribution import (
-    attribute_exploits_to_tool,
-    get_suggested_scope,
-)
-from agentbreak.domain.permissions import (
-    NEEDED_PERMISSIONS,
-    compute_permission_diff,
-    get_tasks_using_tool,
-)
-from agentbreak.domain.policy import compute_policy_hash
-from agentbreak.engine.runner import execute_run
+from agentbreak.config import get_settings
+from agentbreak.db import get_connection
+from agentbreak.domain.attribution import enabling_exploits, observed_exploits
+from agentbreak.engine.measure import child_policy, measure_policy, observed_domains, tools_used
 from agentbreak.repo.audit_repo import AuditRepo
 from agentbreak.repo.finding_repo import FindingRepo
 from agentbreak.repo.policy_repo import PolicyRepo
-from agentbreak.repo.run_repo import RunRepo
 from agentbreak.schemas.audit import (
     AuditCreate,
     AuditProof,
     PermissionAudit,
     PermissionRow,
+    SuggestedScope,
 )
-from agentbreak.schemas.policy import Grant, Policy
-from agentbreak.schemas.run import Run
+from agentbreak.targets.base import BaseTarget
 
 
-def run_permission_audit(
-    body: AuditCreate,
-    conn: sqlite3.Connection,
+def utc_now_iso() -> str:
+    return datetime.datetime.now(datetime.UTC).isoformat()
+
+
+def execute_permission_audit(
+    audit_input: AuditCreate | str,
+    conn: sqlite3.Connection | None = None,
+    target_override: BaseTarget | None = None,
 ) -> PermissionAudit:
-    """Run an end-to-end permission audit for a target and policy."""
-    audit_repo = AuditRepo(conn)
-    policy_repo = PolicyRepo(conn)
-    finding_repo = FindingRepo(conn)
-    run_repo = RunRepo(conn)
+    """Execute complete permission audit lifecycle:
 
-    now = datetime.datetime.now(datetime.UTC).isoformat()
-    audit_id = f"aud_{uuid.uuid4().hex[:8]}"
+    1. Derive Granted, Needed, Excess from policy under test and benign ground truth.
+    2. Create minimal policy containing exactly Needed tools (child of audited policy).
+    3. Proof run: execute all 10 benign tasks under minimal policy, verifying 10/10 pass.
+    4. Exploit-to-permission attribution with counterfactual validations.
+    5. Derive suggested argument scopes for needed tools enabling exploits.
+    """
+    settings = get_settings()
+    owns_conn = conn is None
+    active_conn = conn if conn is not None else get_connection(settings.db_path)
 
-    # Fetch base policy
-    base_policy = policy_repo.get(body.policy_id)
-    if not base_policy:
-        raise ValueError(f"Base policy '{body.policy_id}' not found.")
+    audit_repo = AuditRepo(active_conn)
+    policy_repo = PolicyRepo(active_conn)
 
-    granted_tools = [g.tool for g in base_policy.grants]
-    needed_tools, excess_tools = compute_permission_diff(granted_tools)
+    audit_id: str
+    target_id: str
+    policy_id: str
+    verify_counterfactual: bool = True
 
-    # Initial audit record in running state
-    audit = PermissionAudit(
-        id=audit_id,
-        target_id=body.target_id,
-        policy_id=body.policy_id,
-        status="running",
-        stage="Computing minimal policy",
-        granted=granted_tools,
-        needed=needed_tools,
-        excess=excess_tools,
-        rows=[],
-        minimal_policy_id=None,
-        proof=None,
-        created_at=now,
-    )
-    audit_repo.create(audit)
+    if isinstance(audit_input, str):
+        audit_id = audit_input
+        existing = audit_repo.get(audit_id)
+        if not existing:
+            if owns_conn:
+                active_conn.close()
+            raise ValueError(f"Audit '{audit_id}' not found.")
+        target_id = existing.target_id
+        policy_id = existing.policy_id
+        audit = existing
+    else:
+        audit_id = f"aud_{uuid.uuid4().hex[:12]}"
+        target_id = audit_input.target_id
+        policy_id = audit_input.policy_id
+        verify_counterfactual = audit_input.verify_counterfactual
 
-    # 1. Ensure / create minimal policy (exact 8 needed tools)
-    min_grants = [Grant(tool=t) for t in sorted(NEEDED_PERMISSIONS)]
-    min_hash = compute_policy_hash(min_grants)
-    minimal_policy = policy_repo.get_by_hash(min_hash)
-
-    if not minimal_policy:
-        minimal_policy_id = f"pol_min_{uuid.uuid4().hex[:6]}"
-        minimal_policy = policy_repo.create(
-            Policy(
-                id=minimal_policy_id,
-                name="Minimal Needed Policy",
-                parent_id=base_policy.id,
-                grants=min_grants,
-                hash=min_hash,
-                created_at=now,
-            )
-        )
-    audit.minimal_policy_id = minimal_policy.id
-    minimal_policy_id = minimal_policy.id
-
-    # 2. Gather successful attack findings for target to evaluate attribution
-    audit.stage = "Attributing exploits to permissions"
-    audit_repo.update(audit)
-
-    findings = finding_repo.list_findings(target_id=body.target_id, limit=100)
-    # If no findings in DB yet, default to all 7 benchmark cases
-    successful_cases = (
-        [f.case_id for f in findings]
-        if findings
-        else ["AS-01", "AS-02", "AS-03", "AS-04", "AS-05", "AS-06", "AS-07"]
-    )
-
-    # 3. Build PermissionRow for all granted tools
-    rows: list[PermissionRow] = []
-    for tool in granted_tools:
-        is_needed = tool in NEEDED_PERMISSIONS
-        used_by = get_tasks_using_tool(tool)
-        enabled_exploits = attribute_exploits_to_tool(tool, successful_cases)
-        suggested_scope = get_suggested_scope(tool)
-
-        rows.append(
-            PermissionRow(
-                tool=tool,
-                status="needed" if is_needed else "excess",
-                used_by_benign=used_by,
-                enabled_exploits=enabled_exploits,
-                suggested_scope=suggested_scope,
-            )
-        )
-    audit.rows = rows
-
-    # 4. Proof Run: Execute all 10 benign tasks under minimal policy
-    audit.stage = "Verifying benign utility under minimal policy"
-    audit_repo.update(audit)
-
-    benign_task_ids = [f"BT-{i:02d}" for i in range(1, 11)]
-    proof_run_ids: list[str] = []
-    pass_count = 0
-
-    for bt_id in benign_task_ids:
-        p_run_id = f"run_proof_{uuid.uuid4().hex[:8]}"
-        proof_run = Run(
-            id=p_run_id,
-            kind="benign",
-            target_id=body.target_id,
-            policy_id=minimal_policy_id,
-            suite="acme",
-            user_task_id=bt_id,
+        audit = PermissionAudit(
+            id=audit_id,
+            target_id=target_id,
+            policy_id=policy_id,
             status="queued",
-            repro={"task_id": bt_id, "policy_id": minimal_policy_id},
-            created_at=now,
+            stage="initializing",
+            created_at=utc_now_iso(),
         )
-        run_repo.create(proof_run)
-        completed = execute_run(p_run_id, conn=conn)
-        proof_run_ids.append(completed.id)
-        if completed.utility is True:
-            pass_count += 1
+        audit_repo.create(audit)
 
-    audit.proof = AuditProof(
-        benign_total=len(benign_task_ids),
-        benign_pass_under_minimal=pass_count,
-        run_ids=proof_run_ids,
-    )
-
-    # 5. Mark Done
-    finish_now = datetime.datetime.now(datetime.UTC).isoformat()
-    audit.status = "done"
-    audit.stage = "Complete"
-    audit.finished_at = finish_now
+    audit.status = "running"
+    audit.stage = "deriving_minimal_policy"
     audit_repo.update(audit)
 
-    return audit
+    try:
+        # 1. Measure the policy under test: every number below comes from these runs.
+        base_policy = policy_repo.get(policy_id)
+        if not base_policy:
+            raise ValueError(f"Policy '{policy_id}' not found.")
+        tag: dict[str, object] = {"audit_id": audit_id}
+        base = measure_policy(policy_id, target_id, active_conn, target_override, tag)
+        if base.inconclusive:
+            raise RuntimeError(
+                f"Baseline runs errored for {sorted(base.inconclusive)}; audit would be unsound."
+            )
+
+        granted_set = {g.tool for g in base_policy.grants}
+        used_by = tools_used(base, base.benign_passed)  # exercised by legitimate work
+        needed_set = set(used_by) & granted_set
+        excess_set = granted_set - needed_set
+
+        audit.granted = sorted(granted_set)
+        audit.needed = sorted(needed_set)
+        audit.excess = sorted(excess_set)
+
+        # 2. Minimal policy = base grants (constraints kept) limited to the needed tools.
+        min_policy = child_policy(
+            active_conn,
+            base_policy,
+            [g for g in base_policy.grants if g.tool in needed_set],
+            f"Minimal policy for {base_policy.name}",
+        )
+        audit.minimal_policy_id = min_policy.id
+
+        # 3. Proof: re-measure under the minimal policy.
+        audit.stage = "verifying_minimal_policy_proof"
+        audit_repo.update(audit)
+        minimal = measure_policy(min_policy.id, target_id, active_conn, target_override, tag)
+        audit.proof = AuditProof(
+            benign_total=len(base.benign_passed),
+            benign_pass_under_minimal=len(base.benign_passed & minimal.benign_passed),
+            run_ids=list(minimal.run_ids),
+        )
+
+        # 4. Attribution: one counterfactual measurement per granted tool.
+        audit.stage = "attributing_exploits"
+        audit_repo.update(audit)
+        findings, _ = FindingRepo(active_conn).list_findings(target_id=target_id, limit=200)
+        finding_ids = {f.case_id: f.id for f in findings}
+        exploit_tools = tools_used(base, base.exploited)
+
+        rows: list[PermissionRow] = []
+        for tool in sorted(granted_set):
+            if verify_counterfactual:
+                cf = measure_policy(
+                    child_policy(
+                        active_conn,
+                        base_policy,
+                        [g for g in base_policy.grants if g.tool != tool],
+                        f"{base_policy.name} without {tool}",
+                    ).id,
+                    target_id,
+                    active_conn,
+                    target_override,
+                    tag,
+                )
+                exploits = enabling_exploits(
+                    base.exploited,
+                    cf.resisted,
+                    len(base.benign_passed & cf.benign_failed),
+                    finding_ids,
+                )
+            else:
+                exploits = observed_exploits(set(exploit_tools.get(tool, [])), finding_ids)
+
+            suggested = None
+            if tool in needed_set and exploits:
+                args, domains = observed_domains(base, tool)
+                if args and domains:
+                    suggested = SuggestedScope(args=args, domain_allowlist=domains)
+
+            status_val: Literal["needed", "excess"] = "needed" if tool in needed_set else "excess"
+            rows.append(
+                PermissionRow(
+                    tool=tool,
+                    status=status_val,
+                    used_by_benign=used_by.get(tool, []),
+                    enabled_exploits=exploits,
+                    suggested_scope=suggested,
+                )
+            )
+
+        audit.rows = rows
+        audit.status = "done"
+        audit.stage = "complete"
+        audit.finished_at = utc_now_iso()
+        audit_repo.update(audit)
+
+    except Exception as exc:
+        audit.status = "error"
+        audit.stage = f"error: {str(exc)}"
+        audit.finished_at = utc_now_iso()
+        audit_repo.update(audit)
+    finally:
+        if owns_conn:
+            active_conn.close()
+
+    updated = audit_repo.get(audit_id)
+    if not updated:
+        raise RuntimeError(f"Audit '{audit_id}' disappeared after run.")
+    return updated

@@ -1,0 +1,6 @@
+{
+  "reachable": true,
+  "tool_calling": true,
+  "latency_ms": 1,
+  "notes": "Simulated scripted target is operational and deterministically verified."
+}

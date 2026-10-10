@@ -32,7 +32,7 @@ Working style the owner expects: lazy-senior-dev ("ponytail") — no speculative
 | Sandbox + attacks | `agentdojo==0.1.35` (do not build a sandbox from scratch); custom suite `acme` |
 | Targets | `scripted` (deterministic simulated agent) and `openai_compat` (AgentDojo pipeline over any OpenAI-compatible endpoint: Ollama or an external HTTP agent) |
 | LLM | provider-agnostic via OpenAI-compatible base URL; Ollama default; optional attacker LLM (off by default) |
-| Frontend | React + Vite + TypeScript + Tailwind + Recharts, `react-router-dom`, `react-markdown`; mock-first |
+| Frontend | React + Vite + TypeScript + Tailwind (token themes, light/dark), `react-router-dom`, `react-markdown` + `remark-gfm`, framer-motion (dialogs, path draw); live API by default, mock via `npm run dev:mock` |
 | Isolation | in-memory mock tools; Docker optional (`docker/`) |
 | Dev machine | Windows 11; Python 3.11.9, Node 24, npm 11, uv 0.12, Docker 29, Ollama 0.40; shells: Git Bash and PowerShell |
 
@@ -50,7 +50,7 @@ frontend/src/         api/ (client, hooks, GENERATED types.ts)  mocks/  pages/  
 scripts/              spike_agentdojo.py lint_fake_data.py scan_secrets.py check_egress.py check_mocks.py
 docker/  data/ (gitignored)  docs/ (M12.1)
 ```
-Full tree with purposes: PLAN §16. Currently **only the three .md files exist**.
+Full tree with purposes: PLAN §16. 
 
 ## 4. Commands
 Commands become available at the milestone shown; before that they do not exist yet.
@@ -106,26 +106,11 @@ Commands become available at the milestone shown; before that they do not exist 
 Repo is initialized (branch `main`, remote `origin` = https://github.com/Craigferns/TechForge_college_round). The planning docs were pushed on 2026-10-10 (commit `b6a5404`, on top of the remote's stub README). Do not force-push; push only when the owner asks. One logical change per commit, message `feat(m2.1): short description`. No secrets, no `data/`, no `.env`.
 
 ## 6. Current status (UPDATE AT THE END OF EVERY SESSION)
-- **Last updated:** 2026-10-11 (full 12-phase implementation and contract recheck)
-- **Current status:** **All 12 Phases Fully Implemented and Verified** (M1.1–M12.2).
-  - [x] Phase 1 Foundation and Setup complete (M1.1–M1.6 all verified).
-  - [x] Phase 2 Data model and policies complete (M2.1–M2.4 all verified).
-  - [x] Phase 3 Simulated AI agent complete (M3.1–M3.3 all verified).
-  - [x] Phase 4 Security test engine complete (M4.1–M4.4 all verified).
-  - [x] Phase 5 Proof-of-impact verification complete (M5.1–M5.2 all verified).
-  - [x] Phase 6 Autonomous discovery complete (M6.1–M6.2 all verified).
-  - [x] Phase 7 Attack traces and graphs complete (M7.1–M7.2 all verified).
-  - [x] Phase 8 Defense & permission auditor complete (M8.1–M8.3 all verified).
-  - [x] Phase 9 Fix & regression testing complete (M9.1–M9.3 all verified).
-  - [x] Phase 10 Dashboard & reports complete (M10.1–M10.3 all verified).
-  - [x] Phase 11 Integration & hardening complete (M11.1–M11.3 all verified).
-  - [x] Phase 12 Final demo & polish complete (M12.1–M12.2 all verified).
-- **All Quality Gates Green:**
-  - `pytest`: 118 tests collected and passing (unit + integration + e2e demo flow).
-  - `mypy`: 100% clean across all 82 backend source files.
-  - `ruff`: Clean check and formatting across backend and scripts.
-  - `scripts`: `lint_fake_data.py`, `scan_secrets.py`, `check_egress.py` all exit 0.
-  - `frontend`: `gen:types`, `typecheck` (tsc), `lint` (eslint), `test` (vitest), and `build` (vite) all exit 0.
+- **Last updated:** 2026-10-11 (hackathon productization pass — see HACKATHON_PRODUCTIZATION_PLAN.md)
+- **Current status:** MVP milestones M1.1–M12.2 done, **plus** a productization pass that found the previous sign-off overstated: fix price tags and attribution were hard-coded tables, the frontend ran on mock fixtures by default, the landing demo was an animation, the report had hard-coded sections, `cli demo` crashed on a fresh DB, and ruff/format were not clean. All fixed and verified; details and remaining limitations in HACKATHON_PRODUCTIZATION_PLAN.md §5.
+- **Verified gates (2026-10-11):** `uv run pytest` 121 passed · ruff check/format clean · mypy clean (86 files) · frontend lint/typecheck/build clean, `npm test` 7 passed · `check_mocks.py` 29/29 schema-valid · scan_secrets / lint_fake_data / check_egress pass · `cli demo` on a fresh DB exit 0 (~25 s).
+- **2026-10-11 sync:** repo replaced by the later AGENTBREAK.zip (productization + UI/UX redesign); superseded tests/pages removed; Overview first-run state now has a primary "Run full demo" CTA. Gates re-run green: pytest 122, ruff, mypy, frontend lint/typecheck/test(13)/build.
+- **Next:** P2 items (trace explorer filters, more frontend tests), a real-model run via `openai_compat` + Ollama, run `docs/ci-example.yml` on GitHub.
 - **Success criteria (PLAN §1.5):** SM-1 [x] · SM-2 [x] · SM-3 [x] · SM-4 [x] · SM-5 [x] · SM-6 [x] · SM-7 [x] · SM-8 [x]
 
 ### Milestone checklist (tick when its *Done when* is verified)
@@ -162,7 +147,10 @@ Repo is initialized (branch `main`, remote `origin` = https://github.com/Craigfe
 - **Attack set:** AS-01,02 ipi-exfil · AS-03,04 malicious-doc · AS-05 sleeper (plant BT-01, trigger BT-04) · AS-06,07 priv-esc. On the full policy all 7 succeed (5 critical, 2 high).
 - **Scripted agent:** deterministic; runs the benign ground truth; reacts to markers `[[AB:<IT-id>]]` in tool outputs (obeys unless the profile says otherwise); memory trigger marker `[[AB:IT-04T]]`.
 - **Sleeper:** fresh env per session; only `env.memory` is carried over (persisted in SQLite). Outcomes: `plant_failed | trigger_blocked | triggered`.
-- **Golden fix price tags** (scripted target): remove `delete_file` 1/7 blocked, 0/10 broken · remove `send_email` 3/7, 4/10 · restrict `send_email` to `{acme.test, partnerco.test}` 3/7, 0/10 · combined hardening 7/7, 0/10 (full table: PLAN §11.5).
+- **Fix price tags are measured, never looked up** (`engine/measure.py`: every attack + benign task under base and fixed policy; errored runs are `inconclusive`, never blocked/broken; AS-05 counted via the sleeper chain). Measured on the scripted target: remove `delete_file` 1/7 blocked, 0/10 broken · remove `send_email` 3/7, 4/10 · restrict `send_email` to `{acme.test, partnerco.test}` 3/7, 0/10 · combined hardening 7/7, 0/10 (full table: PLAN §11.5).
+- **Attribution (D1)** = one counterfactual measurement per granted tool; **needed** = tools called by passing benign runs; scope arg names come from every run that passed an address (so `bcc` is covered), domains only from passing benign runs.
+- **Posture** (`engine/posture.py`, dashboard + report) = latest result per case/task under the target's ACTIVE policy. Findings become `regressed` only when re-exploited under the active policy.
+- **CLI:** `demo`, `ci` (exit 0 pass / 1 gate failed / 2 infra error; `--policy-file` = policy-as-code), `verify <run_id>` (fail-closed). Frontend defaults to the live API; `npm run dev:mock` uses fixtures recorded by `scripts/gen_mocks.py`.
 - **Jobs:** `ThreadPoolExecutor(2)`, status polling (`queued→running→done|error|cancelled`), no SSE/Celery. PDF = browser print; Markdown from the server.
 - **Frontend mock-first:** `VITE_API_MODE=mock` serves typed fixtures; Phases 7–10 wire pages to the live API.
 
@@ -188,6 +176,23 @@ Repo is initialized (branch `main`, remote `origin` = https://github.com/Craigfe
 | 2026-10-10 | Phase 2 completed: SQLite WAL schema + repositories (TargetRepo, PolicyRepo, RunRepo); deterministic SHA-256 canonical policy hashing; PolicyRuntime interposition wrapper; AcmeEnv sandbox with 10 tools, .test safety linter, and 10 benign tasks (UserTask1..10) passing ground-truth utility with exact 8 needed tools | Milestones M2.1 through M2.4 verified; all 31 backend unit tests, mypy, ruff, and frontend checks passing |
 | 2026-10-10 | Phase 3 completed: unified BaseTarget interface; deterministic ScriptedAgent and ScriptedTarget (10/10 benign ground truth passing, hash-equal determinism); pure run_once loop; OpenAICompatTarget adapter with dynamic api_key_env and < 5s probe_target tool-calling validation; active REST APIs for targets, suites, scenarios, attack-cases, policies; seed.py and cli seed | Milestones M3.1 through M3.3 verified; 55 backend unit tests, mypy, ruff, and frontend checks passing |
 | 2026-10-10 | Phase 4 completed: Injection tasks IT-01..05 + 6 pure predicates (check_p_exfil_mail, check_p_acl, check_p_delete, check_p_plant, check_p_trigger, check_p_priv); 4 scenarios & 7 attack cases (AS-01..07); payload template families with machine markers [[AB:...]] & length cap; AgentBreakAttack(BaseAttack); execute_run runner with fail-closed guarantee; messages_to_trace_steps with display-only taint heuristics and caused_by_idx tracking; PRE/POST snapshots; ThreadPoolExecutor JobPool with max_workers=2, crash recovery, and cancellation; real live REST endpoints for /runs; multi-session sleeper runner (plant -> gap -> trigger) with SQLite memory carryover and policy mitigations verified; cli run and cli sleeper commands | Milestones M4.1 through M4.4 verified; 90 backend unit tests, mypy, ruff, and frontend checks passing |
+
+| 2026-10-11 | Replace hard-coded fix/attribution tables with `engine/measure.py` (real runs) | The tables were wrong in several cells and made D1/D2 claims unfalsifiable |
+| 2026-10-11 | Scripted agent reports failure when one of its own tool calls is denied | Benign "still passes" was vacuously true under denial |
+| 2026-10-11 | AS-05 judged end-to-end (sleeper trigger) for price tags, findings and posture | Its harm happens in the trigger session; plant-only verdict made "0/7" unreachable and misleading |
+| 2026-10-11 | Additive contract change: `FixEvalDetails.{inconclusive,sleeper_outcome,run_ids}`, `DashboardSummary.{active_policy_id,sleeper_outcome,inconclusive}`, runs list `case_id` filter | Expose evidence the UI needs; defaults keep old clients working |
+| 2026-10-11 | `get_connection` migrates; API startup seeds the demo target; per-test DB + socket guard in conftest | Fresh-DB crash; tests were polluting `data/` |
+| 2026-10-11 | `defense`/`prompt_hardening` fix kinds rejected (422) until implemented | They "evaluated" as no-op policies |
+| 2026-10-11 | Demo runs in a single-worker background executor; UI polls `/demo/{id}` | Real progress instead of an animation; no concurrent demos racing on one target |
+| 2026-10-11 | CI workflow shipped as `docs/ci-example.yml`, not activated in `.github/` | CLAUDE.md §2: CI changes need owner approval |
+
+| 2026-10-11 | UI workbench redesign: brief's palette as RGB tokens (`src/index.css`), light+dark theme, sidebar shell, Findings page, New run dialog, synced attack path ⇄ trace | Owner's UI brief; see UI_UX_TRANSFORMATION_REPORT.md |
+| 2026-10-11 | Light-mode small text uses same-hue AA "ink" variants (#047857, #C2410C); supplied #059669/#EA580C kept for fills/rings/large numerals | Supplied values measure 3.4:1 / 3.3:1 on white — below WCAG AA for small text |
+| 2026-10-11 | Deps: +@fontsource/ibm-plex-sans, +@fontsource/ibm-plex-mono (offline fonts), +remark-gfm (report tables rendered as raw pipes); −recharts (no remaining use) | Offline demo typography; correct report rendering; deletion over addition |
+| 2026-10-11 | Run graph draws an impact node only when the stored verdict is a success | It drew "caused → impact" for blocked runs |
+
+| 2026-10-11 | Additive contract: `FixEvalDetails.before_runs/after_runs` (case/task → run id) | Before/after remediation comparison needs the baseline runs, which were not stored |
+| 2026-10-11 | `/privacy` and `/terms` pages describe actual behaviour; license stated as not chosen | 30-rule audit #26/#27; no invented compliance |
 
 *Add a row for every decision, dependency, or deviation from PLAN.md, in the session it happens — including the outcome of each [VERIFY] item in M1.2.*
 

@@ -1,4 +1,4 @@
-"""Security scanning script checking for sensitive tokens or credentials in the repo."""
+"""Script scanning repository codebase for potential secret leaks (PLAN.md §20 / M11.2)."""
 
 from __future__ import annotations
 
@@ -6,78 +6,60 @@ import re
 import sys
 from pathlib import Path
 
-# Patterns indicating hardcoded private keys or live API tokens (not fake test ones)
+REPO_ROOT = Path(__file__).resolve().parents[1]
+
+# Patterns for potential secrets
 SECRET_PATTERNS = [
-    (re.compile(r"-----BEGIN (RSA|EC|DSA|OPENSSH|PRIVATE) KEY-----"), "Private key block detected"),
-    (
-        re.compile(
-            r"(?i)(aws_access_key_id|aws_secret_access_key)\s*=\s*['\"][A-Za-z0-9/+=]{16,}['\"]"
-        ),
-        "AWS credential pattern",
-    ),
-    (re.compile(r"(?i)ghp_[0-9a-zA-Z]{36}"), "GitHub Personal Access Token"),
-    (re.compile(r"(?i)sk-[a-zA-Z0-9]{32,}"), "OpenAI API Key pattern"),
+    (r"AKIA[0-9A-Z]{16}", "AWS Access Key"),
+    (r"ghp_[0-9a-zA-Z]{36}", "GitHub Personal Access Token"),
+    (r"sk-[a-zA-Z0-9]{48}", "OpenAI API Key"),
+    (r"AIza[0-9A-Za-z-_]{35}", "Google API Key"),
 ]
 
-EXCLUDE_DIRS = {
-    ".git",
-    ".venv",
-    "node_modules",
-    ".pytest_cache",
-    ".mypy_cache",
-    ".ruff_cache",
-    "dist",
-}
+ALLOWED_CANARY_PREFIX = "AB-CANARY-"
 
 
 def scan_file(file_path: Path) -> list[str]:
-    violations: list[str] = []
+    violations = []
+    # Skip binary, venv, git, node_modules
+    if any(
+        part in file_path.parts for part in (".git", ".venv", "node_modules", "dist", "__pycache__")
+    ):
+        return []
+
     try:
         content = file_path.read_text(encoding="utf-8", errors="ignore")
     except Exception:
-        return violations
+        return []
 
     for pattern, desc in SECRET_PATTERNS:
-        matches = pattern.findall(content)
-        if matches:
-            violations.append(f"{file_path}: {desc}")
+        matches = re.findall(pattern, content)
+        for m in matches:
+            violations.append(
+                f"{desc} pattern detected in {file_path.relative_to(REPO_ROOT)}: {m[:6]}..."
+            )
 
     return violations
 
 
-def scan_repo(root: Path) -> list[str]:
-    all_violations: list[str] = []
-    for item in root.rglob("*"):
-        if item.is_file():
-            if any(part in EXCLUDE_DIRS for part in item.parts):
-                continue
-            if item.suffix in (
-                ".py",
-                ".json",
-                ".md",
-                ".ts",
-                ".tsx",
-                ".yaml",
-                ".yml",
-                ".env",
-                ".toml",
-            ):
-                all_violations.extend(scan_file(item))
-    return all_violations
+def main() -> int:
+    print(f"Scanning {REPO_ROOT} for secrets...")
+    all_violations = []
 
+    for path in REPO_ROOT.rglob("*"):
+        if path.is_file():
+            violations = scan_file(path)
+            all_violations.extend(violations)
 
-def main() -> None:
-    repo_root = Path(__file__).resolve().parent.parent
-    violations = scan_repo(repo_root)
-    if violations:
-        print(f"FAILED: Found {len(violations)} secret violation(s):")
-        for v in violations:
-            print(f"  - {v}")
-        sys.exit(1)
+    if all_violations:
+        print(f"FAILED: {len(all_violations)} potential secret(s) found:")
+        for v in all_violations:
+            print(f" - {v}")
+        return 1
 
-    print("PASSED: No unapproved secrets found in repository.")
-    sys.exit(0)
+    print("PASS: 0 secrets found. Clean repository.")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

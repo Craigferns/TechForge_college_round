@@ -10,6 +10,13 @@ from agentbreak.schemas.run import RunSummary
 
 
 class DashboardSummary(BaseModel):
+    """Current posture of one target: the latest completed result per attack case and
+    benign task under the target's ACTIVE policy (AS-05 from its latest sleeper chain).
+    Runs under other policies (baselines, counterfactuals, fix measurements) are excluded."""
+
+    active_policy_id: str | None = None
+    sleeper_outcome: str | None = None
+    inconclusive: int = 0  # latest runs that errored: neither exploited nor resisted
     attack_success_rate: float
     benign_pass_rate: float
     total_attacks: int
@@ -18,7 +25,7 @@ class DashboardSummary(BaseModel):
     passed_benign: int
     findings_by_severity: dict[str, int]
     open_findings: int
-    fixes_applied: int
+    fixes_applied: int  # grants removed/constrained vs the policy of the target's first run
     recent_runs: list[RunSummary]
     trend: list[dict[str, Any]] = Field(default_factory=list)
     model_config = {"extra": "forbid"}

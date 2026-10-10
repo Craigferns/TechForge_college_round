@@ -1,48 +1,51 @@
-"""Verify that sandbox execution produces zero outbound egress to unauthorized network endpoints."""
+"""Egress checking script verifying only allowed base_url destinations are queried (PLAN.md M11.2)."""
 
 from __future__ import annotations
 
-import socket
+import os
 import sys
-
-# Allowed destinations: localhost / loopback interfaces only
-ALLOWED_HOSTS = {"127.0.0.1", "localhost", "::1"}
+from urllib.parse import urlparse
 
 
-def verify_egress_rules(target_url: str = "http://127.0.0.1:11434") -> bool:
-    """Ensure the target endpoint is within local loopback bounds."""
-    from urllib.parse import urlparse
-
+def check_egress_rules(target_url: str) -> bool:
+    """Verify destination is allowed. In sandbox mode, only localhost or local ports are allowed unless remote flag set."""
     parsed = urlparse(target_url)
-    host = parsed.hostname or ""
-    if host in ALLOWED_HOSTS:
+    hostname = parsed.hostname or ""
+
+    is_local = hostname in ("localhost", "127.0.0.1", "::1", "")
+    allow_remote = os.environ.get("AGENTBREAK_ALLOW_REMOTE_TARGETS") == "1"
+
+    if is_local or allow_remote:
+        print(
+            f"PASS: Egress to '{target_url}' permitted (local={is_local}, allow_remote={allow_remote})."
+        )
         return True
-
-    # Try resolving hostname
-    try:
-        ip = socket.gethostbyname(host)
-        if ip.startswith("127."):
-            return True
-    except Exception:
-        pass
-
-    return False
+    else:
+        print(
+            f"BLOCK: Egress to '{target_url}' blocked by sandbox policy (remote targets disabled)."
+        )
+        return False
 
 
-def main() -> None:
-    # Test valid loopback
-    if not verify_egress_rules("http://127.0.0.1:8000"):
-        print("FAILED: Rejected legitimate loopback destination")
-        sys.exit(1)
+def main() -> int:
+    test_urls = [
+        "http://localhost:11434/v1",
+        "http://127.0.0.1:8000/api/v1",
+        "http://evil-external-server.com/exfil",
+    ]
 
-    # Test unauthorized remote endpoint
-    if verify_egress_rules("https://evil-attacker.com"):
-        print("FAILED: Allowed unauthorized external egress to evil-attacker.com")
-        sys.exit(1)
+    print("Verifying sandbox egress controls...")
+    # First two should pass
+    p1 = check_egress_rules(test_urls[0])
+    p2 = check_egress_rules(test_urls[1])
+    # Third must be blocked
+    p3 = not check_egress_rules(test_urls[2])
 
-    print("PASSED: Egress policy verified. All external network egress is blocked by default.")
-    sys.exit(0)
+    if p1 and p2 and p3:
+        print("ALL EGRESS CHECKS PASSED: Non-local egress successfully fails closed.")
+        return 0
+    return 1
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

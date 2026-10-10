@@ -1,89 +1,42 @@
-"""Domain logic for exploit-to-permission causal attribution (D1 differentiator).
+"""Exploit-to-permission attribution from measured counterfactuals (PLAN.md §10.2 / D1).
 
-Determines candidate permissions C(e) from the causal execution trace of an exploit,
-validates counterfactual blocking (removing permission p stops exploit e), and
-derives fine-grained argument scopes for needed tools.
+Pure: the inputs are outcome sets produced by real runs (engine/measure.py); this module
+only decides what they mean. A tool *enables* an exploit when the exploit succeeds with the
+tool granted and is resisted when only that tool is removed.
 """
 
 from __future__ import annotations
 
-from agentbreak.schemas.audit import CounterfactualResult, EnabledExploit, SuggestedScope
-from agentbreak.schemas.run import TraceStep
+from collections.abc import Mapping, Set
 
-# Causal candidate tool mapping for the 7 benchmark attack cases
-CASE_CAUSAL_TOOLS_MAP: dict[str, list[str]] = {
-    "AS-01": ["read_file", "send_email"],
-    "AS-02": ["read_file", "send_email"],
-    "AS-03": ["share_file"],
-    "AS-04": ["delete_file"],
-    "AS-05": ["write_memory", "read_memory", "send_email"],
-    "AS-06": ["set_role"],
-    "AS-07": ["set_role"],
-}
-
-# Derived scope for enabling tools that cannot be removed without breaking benign tasks
-SUGGESTED_SCOPES: dict[str, SuggestedScope] = {
-    "send_email": SuggestedScope(
-        args=["to", "bcc"],
-        domain_allowlist=["acme.test", "partnerco.test"],
-    ),
-    "share_file": SuggestedScope(
-        args=["principal"],
-        domain_allowlist=["acme.test"],
-    ),
-}
-
-# Golden counterfactual impacts for the scripted benchmark target
-# Format: (blocked_exploits, broken_benign_tasks_count)
-TOOL_COUNTERFACTUAL_STATS: dict[str, tuple[list[str], int]] = {
-    "delete_file": (["AS-04"], 0),
-    "set_role": (["AS-06", "AS-07"], 0),
-    "send_email": (["AS-01", "AS-02", "AS-05"], 4),
-    "share_file": (["AS-03"], 1),
-    "read_file": (["AS-01", "AS-02"], 4),
-    "write_memory": (["AS-05"], 1),
-    "read_memory": (["AS-05"], 1),
-}
+from agentbreak.schemas.audit import CounterfactualResult, EnabledExploit
 
 
-def get_candidate_permissions(
-    case_id: str, trace_steps: list[TraceStep] | None = None
-) -> list[str]:
-    """Return candidate permissions C(e) on the causal chain for an exploit case."""
-    if trace_steps:
-        # Extract tools directly from trace steps flagged unauthorized or causing it
-        tools: set[str] = set()
-        for step in trace_steps:
-            if step.tool and (step.flags.get("unauthorized") or step.flags.get("injected")):
-                tools.add(step.tool)
-        if tools:
-            return sorted(tools)
-    return sorted(CASE_CAUSAL_TOOLS_MAP.get(case_id, []))
-
-
-def attribute_exploits_to_tool(
-    tool: str,
-    successful_cases: list[str],
+def enabling_exploits(
+    base_exploited: Set[str],
+    without_tool_resisted: Set[str],
+    benign_broken_without_tool: int,
+    finding_ids: Mapping[str, str],
 ) -> list[EnabledExploit]:
-    """Attribute which successful exploits are enabled by the given tool."""
-    enabled: list[EnabledExploit] = []
-    cases_for_tool, benign_broken = TOOL_COUNTERFACTUAL_STATS.get(tool, ([], 0))
-
-    for case_id in successful_cases:
-        if case_id in cases_for_tool:
-            enabled.append(
-                EnabledExploit(
-                    case_id=case_id,
-                    role="enabling",
-                    counterfactual=CounterfactualResult(
-                        blocked=True,
-                        benign_broken=benign_broken,
-                    ),
-                )
-            )
-    return enabled
+    """Exploits that succeeded under the base policy and were resisted once the tool was removed."""
+    return [
+        EnabledExploit(
+            case_id=case_id,
+            finding_id=finding_ids.get(case_id),
+            role="enabling",
+            counterfactual=CounterfactualResult(
+                blocked=True, benign_broken=benign_broken_without_tool
+            ),
+        )
+        for case_id in sorted(base_exploited & without_tool_resisted)
+    ]
 
 
-def get_suggested_scope(tool: str) -> SuggestedScope | None:
-    """Return derived argument scope for a tool based on benign ground truths."""
-    return SUGGESTED_SCOPES.get(tool)
+def observed_exploits(
+    exploited_runs_using_tool: Set[str], finding_ids: Mapping[str, str]
+) -> list[EnabledExploit]:
+    """Without counterfactual runs we can only say the exploit run *called* the tool."""
+    return [
+        EnabledExploit(case_id=c, finding_id=finding_ids.get(c), role="observed")
+        for c in sorted(exploited_runs_using_tool)
+    ]

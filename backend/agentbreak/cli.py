@@ -245,178 +245,6 @@ def sleeper_cmd(target_name: str, case_id: str = "AS-05", policy_name: str | Non
     print("=" * 60)
 
 
-def verify_cmd(run_id: str) -> None:
-    """Deterministically re-verify environment state diff predicates for a stored run."""
-    from agentbreak.config import get_settings
-    from agentbreak.db import get_connection
-    from agentbreak.domain.verdict import evaluate
-    from agentbreak.repo.run_repo import RunRepo
-
-    settings = get_settings()
-    conn = get_connection(settings.db_path)
-    run_repo = RunRepo(conn)
-
-    run = run_repo.get(run_id)
-    if not run:
-        print(f"Error: Run '{run_id}' not found.")
-        sys.exit(1)
-
-    stored_verdict = run_repo.get_verdict(run_id)
-    if not stored_verdict:
-        print(f"Error: Verdict for run '{run_id}' not found.")
-        sys.exit(1)
-
-    snapshots = run_repo.get_snapshots(run_id)
-    if not snapshots:
-        print(f"Error: Snapshots for run '{run_id}' not found.")
-        sys.exit(1)
-
-    claims_action = stored_verdict.classification == "said_not_did"
-    case_id = run.case_id or "AS-01"
-    recomputed = evaluate(
-        case_id=case_id,
-        pre=snapshots.pre,
-        post=snapshots.post,
-        claims_action=claims_action,
-        now_iso=stored_verdict.created_at,
-    )
-
-    matches = recomputed.verdict_hash == stored_verdict.verdict_hash
-
-    print("=" * 60)
-    print(f"VERIFY RUN:      {run.id}")
-    print(f"Stored Hash:     {stored_verdict.verdict_hash}")
-    print(f"Recomputed Hash: {recomputed.verdict_hash}")
-    print(f"Matches Stored:  {matches}")
-    print(f"Success:         {recomputed.success}")
-    print(f"Classification:  {recomputed.classification}")
-    print(f"Severity:        {recomputed.severity}")
-    print(f"Evidence Count:  {len(recomputed.evidence)}")
-    print("=" * 60)
-
-    if not matches:
-        print("Verification failed: recomputed hash does not match stored hash.")
-        sys.exit(1)
-
-
-def replay_cmd(run_id: str) -> None:
-    """Execute a deterministic replay of a previous run under identical initial conditions."""
-    import uuid
-
-    from agentbreak.config import get_settings
-    from agentbreak.db import get_connection
-    from agentbreak.engine.runner import execute_run, utc_now_iso
-    from agentbreak.repo.run_repo import RunRepo
-    from agentbreak.schemas.run import Run
-
-    settings = get_settings()
-    conn = get_connection(settings.db_path)
-    run_repo = RunRepo(conn)
-
-    source_run = run_repo.get(run_id)
-    if not source_run:
-        print(f"Error: Run '{run_id}' not found.")
-        sys.exit(1)
-
-    new_run_id = f"run_{uuid.uuid4().hex[:12]}"
-    replay_run = Run(
-        id=new_run_id,
-        kind=source_run.kind,
-        target_id=source_run.target_id,
-        policy_id=source_run.policy_id,
-        suite=source_run.suite,
-        case_id=source_run.case_id,
-        scenario_id=source_run.scenario_id,
-        user_task_id=source_run.user_task_id,
-        injection_task_id=source_run.injection_task_id,
-        template_id=source_run.template_id,
-        payload_text=source_run.payload_text,
-        payload_hash=source_run.payload_hash,
-        origin=source_run.origin,
-        status="queued",
-        repro=dict(source_run.repro),
-        created_at=utc_now_iso(),
-    )
-    run_repo.create(replay_run)
-    completed_run = execute_run(new_run_id, conn=conn)
-
-    print("=" * 60)
-    print(f"Replay Source:   {source_run.id}")
-    print(f"Replay Run ID:   {completed_run.id}")
-    print(f"Status:          {completed_run.status}")
-    print(f"Utility:         {completed_run.utility}")
-    print(f"Security:        {completed_run.security}")
-    print("=" * 60)
-
-
-def discover_cmd(
-    target_name: str,
-    policy_name: str = "pol_full",
-    budget_attempts: int = 30,
-    seed: int = 7,
-) -> None:
-    """Execute an autonomous discovery campaign via CLI."""
-    from agentbreak.config import get_settings
-    from agentbreak.db import get_connection, migrate
-    from agentbreak.engine.discovery import run_discovery_campaign
-    from agentbreak.repo.policy_repo import PolicyRepo
-    from agentbreak.repo.target_repo import TargetRepo
-    from agentbreak.schemas.discovery import DiscoveryBudget, DiscoveryCreate
-    from agentbreak.seed import seed_database
-
-    settings = get_settings()
-    conn = get_connection(settings.db_path)
-    migrate(conn)
-    seed_database(conn)
-
-    target_repo = TargetRepo(conn)
-    policy_repo = PolicyRepo(conn)
-
-    target_model = target_repo.get(target_name)
-    if not target_model:
-        norm = target_name.replace("-", "_")
-        for t in target_repo.list():
-            if (
-                t.id == target_name
-                or t.id == f"tgt_{norm}"
-                or norm in t.id
-                or target_name.lower() in t.name.lower()
-            ):
-                target_model = t
-                break
-    if not target_model:
-        print(f"Error: Target '{target_name}' could not be resolved.")
-        sys.exit(1)
-
-    pol_id = policy_name or "pol_full"
-    policy_model = policy_repo.get(pol_id)
-    if not policy_model:
-        for p in policy_repo.list():
-            if p.id == pol_id or pol_id in p.name.lower():
-                policy_model = p
-                break
-    if not policy_model:
-        print(f"Error: Policy '{pol_id}' could not be resolved.")
-        sys.exit(1)
-
-    create = DiscoveryCreate(
-        target_id=target_model.id,
-        policy_id=policy_model.id,
-        budget=DiscoveryBudget(max_attempts=budget_attempts, max_seconds=300),
-        seed=seed,
-    )
-    campaign = run_discovery_campaign(create, conn=conn)
-
-    print("=" * 60)
-    print(f"Discovery Campaign: {campaign.id}")
-    print(f"Target:             {target_model.name} ({target_model.id})")
-    print(f"Status:             {campaign.status}")
-    print(f"Attempts:           {campaign.attempts}")
-    print(f"Successes:          {campaign.successes}")
-    print(f"Coverage:           {campaign.coverage}")
-    print("=" * 60)
-
-
 def main() -> None:
     parser = argparse.ArgumentParser(description="AgentBreak CLI")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -485,23 +313,7 @@ def main() -> None:
         help="Policy ID (default: pol_full)",
     )
 
-    verify_parser = subparsers.add_parser("verify", help="Verify run verdict from stored snapshots")
-    verify_parser.add_argument(
-        "run_id",
-        type=str,
-        help="Run ID to verify",
-    )
-
-    replay_parser = subparsers.add_parser("replay", help="Replay a previous evaluation run")
-    replay_parser.add_argument(
-        "run_id",
-        type=str,
-        help="Run ID to replay",
-    )
-
-    discover_parser = subparsers.add_parser(
-        "discover", help="Run autonomous discovery campaign on target"
-    )
+    discover_parser = subparsers.add_parser("discover", help="Run autonomous discovery campaign")
     discover_parser.add_argument(
         "--target",
         type=str,
@@ -515,17 +327,42 @@ def main() -> None:
         help="Policy ID (default: pol_full)",
     )
     discover_parser.add_argument(
-        "--budget",
+        "--seed",
+        type=int,
+        default=42,
+        help="Random seed for deterministic exploration (default: 42)",
+    )
+    discover_parser.add_argument(
+        "--max-attempts",
         type=int,
         default=30,
         help="Maximum attempts budget (default: 30)",
     )
-    discover_parser.add_argument(
-        "--seed",
-        type=int,
-        default=7,
-        help="Random seed for deterministic search (default: 7)",
+
+    subparsers.add_parser("demo", help="Run the end-to-end demo on the simulated target")
+
+    verify_parser = subparsers.add_parser(
+        "verify", help="Recompute a run's verdict from stored snapshots (exit 0 match, 1 mismatch)"
     )
+    verify_parser.add_argument("run_id")
+
+    ci_parser = subparsers.add_parser(
+        "ci",
+        help="Security gate: measure a policy, write JSON; exit 0 pass, 1 gate failed, 2 infra error",
+    )
+    ci_parser.add_argument("--target", default="tgt_demo_scripted")
+    ci_parser.add_argument(
+        "--policy", default=None, help="Policy id (default: target's active policy)"
+    )
+    ci_parser.add_argument(
+        "--policy-file",
+        type=Path,
+        default=None,
+        help="JSON list of grants to test (policy-as-code); overrides --policy",
+    )
+    ci_parser.add_argument("--max-exploited", type=int, default=0)
+    ci_parser.add_argument("--min-benign-pass", type=float, default=1.0, help="Fraction 0..1")
+    ci_parser.add_argument("--out", type=Path, default=Path("agentbreak-ci.json"))
 
     args = parser.parse_args()
 
@@ -539,16 +376,63 @@ def main() -> None:
         run_cmd(target_name=args.target, case_id=args.case, policy_name=args.policy)
     elif args.command == "sleeper":
         sleeper_cmd(target_name=args.target, case_id=args.case, policy_name=args.policy)
-    elif args.command == "verify":
-        verify_cmd(run_id=args.run_id)
-    elif args.command == "replay":
-        replay_cmd(run_id=args.run_id)
     elif args.command == "discover":
-        discover_cmd(
-            target_name=args.target,
-            policy_name=args.policy,
-            budget_attempts=args.budget,
-            seed=args.seed,
+        from agentbreak.engine.discovery import execute_discovery_campaign
+        from agentbreak.schemas.discovery import DiscoveryBudget, DiscoveryCreate
+
+        camp = execute_discovery_campaign(
+            DiscoveryCreate(
+                target_id=args.target,
+                policy_id=args.policy,
+                seed=args.seed,
+                budget=DiscoveryBudget(max_attempts=args.max_attempts),
+            )
+        )
+        print(
+            f"Discovery campaign {camp.id} completed: {camp.attempts} attempts, {camp.successes} successes."
+        )
+        print(f"Coverage: {camp.coverage}")
+    elif args.command == "demo":
+        from agentbreak.engine.demo import run_full_demo
+
+        print("Starting 1-minute full demo run...")
+        demo_status = run_full_demo()
+        print(f"Demo completed with status: {demo_status.status}")
+        for stg in demo_status.stages:
+            print(f" - [{stg.status.upper():9}] {stg.name}: {stg.detail or ''}")
+        print(f"Links: {demo_status.links}")
+        if demo_status.status != "completed":
+            print(f"Demo failed: {demo_status.error}", file=sys.stderr)
+            sys.exit(1)
+    elif args.command == "verify":
+        from agentbreak.db import get_connection
+        from agentbreak.engine.verify import reverify_run
+
+        conn = get_connection()
+        try:
+            v = reverify_run(args.run_id, conn)
+        except ValueError as exc:
+            print(f"cannot verify: {exc}", file=sys.stderr)
+            sys.exit(2)
+        finally:
+            conn.close()
+        print(
+            f"{args.run_id}: classification={v.classification} success={v.success} "
+            f"hash={v.verdict_hash} matches_stored={v.matches_stored}"
+        )
+        sys.exit(0 if v.matches_stored else 1)
+    elif args.command == "ci":
+        from agentbreak.engine.ci import run_ci_gate
+
+        sys.exit(
+            run_ci_gate(
+                target_id=args.target,
+                policy_id=args.policy,
+                policy_file=args.policy_file,
+                max_exploited=args.max_exploited,
+                min_benign_pass=args.min_benign_pass,
+                out=args.out,
+            )
         )
     else:
         parser.print_help()

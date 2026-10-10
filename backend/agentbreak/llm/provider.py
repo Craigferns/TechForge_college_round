@@ -141,3 +141,33 @@ def probe_target(
             latency_ms=0,
             notes=f"Chat completions error: {exc}",
         )
+
+
+def query_chat_completion(
+    base_url: str,
+    model: str,
+    prompt: str,
+    api_key: str | None = None,
+    temperature: float = 0.0,
+    timeout_s: float = 15.0,
+) -> str:
+    """Send a basic prompt to an OpenAI-compatible /chat/completions endpoint."""
+    clean_url = base_url.rstrip("/")
+    headers = {"Content-Type": "application/json"}
+    if api_key:
+        headers["Authorization"] = f"Bearer {api_key}"
+
+    payload = {
+        "model": model,
+        "messages": [{"role": "user", "content": prompt}],
+        "temperature": temperature,
+    }
+    with httpx.Client(timeout=timeout_s) as client:
+        resp = client.post(f"{clean_url}/chat/completions", headers=headers, json=payload)
+        resp.raise_for_status()
+        data = resp.json()
+        choices = data.get("choices", [])
+        if choices:
+            content = choices[0].get("message", {}).get("content", "")
+            return str(content) if content is not None else ""
+    return ""

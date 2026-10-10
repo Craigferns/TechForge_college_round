@@ -1,0 +1,21 @@
+{
+  "policy_a": "pol_full",
+  "policy_b": "pol_35d80360",
+  "added_tools": [],
+  "removed_tools": [
+    "delete_file",
+    "set_role"
+  ],
+  "constraint_changes": [
+    {
+      "tool": "send_email",
+      "before": "{}",
+      "after": "{\"bcc\": [\"acme.test\", \"partnerco.test\"], \"to\": [\"acme.test\", \"partnerco.test\"]}"
+    },
+    {
+      "tool": "share_file",
+      "before": "{}",
+      "after": "{\"principal\": [\"acme.test\"]}"
+    }
+  ]
+}
