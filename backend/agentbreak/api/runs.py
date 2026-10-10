@@ -177,6 +177,7 @@ def list_runs(
     kind: str | None = None,
     status_filter: str | None = Query(default=None, alias="status"),
     scenario_id: str | None = None,
+    case_id: str | None = None,
     ids: str | None = None,
     limit: int = 50,
     offset: int = 0,
@@ -191,6 +192,7 @@ def list_runs(
         kind=kind,
         status=status_filter,
         scenario_id=scenario_id,
+        case_id=case_id,
         ids=id_list,
         limit=limit,
         offset=offset,
@@ -201,6 +203,7 @@ def list_runs(
         kind=kind,
         status=status_filter,
         scenario_id=scenario_id,
+        case_id=case_id,
         ids=id_list,
     )
 
@@ -260,12 +263,6 @@ def get_run_snapshots(run_id: str, db: DbDep) -> SnapshotPair:
 @router.get("/{run_id}/graph", response_model=AttackGraph)
 def get_run_graph(run_id: str, db: DbDep) -> AttackGraph:
     """Retrieve causal attack graph connecting attack vector to exploit effect."""
-    raise HTTPException(status_code=status.HTTP_501_NOT_IMPLEMENTED, detail="Endpoint stub")
-
-
-@router.post("/{run_id}/verify", response_model=Verdict)
-def verify_run(run_id: str, db: DbDep) -> Verdict:
-    """Deterministically re-verify environment state diff predicates and canary tokens."""
     repo = RunRepo(db)
     run = repo.get(run_id)
     if not run:
@@ -273,13 +270,17 @@ def verify_run(run_id: str, db: DbDep) -> Verdict:
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Run '{run_id}' not found.",
         )
-    verdict = repo.get_verdict(run_id)
-    if not verdict:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Verdict for run '{run_id}' not found.",
-        )
-    return verdict
+    from agentbreak.domain.graph import build_run_graph
+
+    return build_run_graph(run_id, db)
+
+
+@router.post("/{run_id}/verify", response_model=Verdict)
+def verify_run(run_id: str, db: DbDep) -> Verdict:
+    """Recompute the verdict from stored PRE/POST snapshots and compare it to the stored hash."""
+    from agentbreak.engine.verify import reverify_run
+
+    return reverify_run(run_id, db)  # ValueError -> 422 envelope (fail closed)
 
 
 @router.post("/{run_id}/cancel", response_model=Run)

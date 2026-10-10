@@ -1,0 +1,85 @@
+{
+  "nodes": [
+    {
+      "id": "vec_inj_email_body",
+      "label": "Vector: inj_email_body",
+      "type": "vector",
+      "severity": null,
+      "count": 168
+    },
+    {
+      "id": "vec_inj_doc_content",
+      "label": "Vector: inj_doc_content",
+      "type": "vector",
+      "severity": null,
+      "count": 70
+    },
+    {
+      "id": "tool_agent_tools",
+      "label": "Tool: agent_tools",
+      "type": "tool",
+      "severity": null,
+      "count": 238
+    },
+    {
+      "id": "impact_privilege_change",
+      "label": "Impact: privilege_change",
+      "type": "impact",
+      "severity": "critical",
+      "count": 67
+    },
+    {
+      "id": "impact_persistence",
+      "label": "Impact: persistence",
+      "type": "impact",
+      "severity": "high",
+      "count": 29
+    },
+    {
+      "id": "impact_destructive",
+      "label": "Impact: destructive",
+      "type": "impact",
+      "severity": "high",
+      "count": 32
+    },
+    {
+      "id": "impact_data_exfiltration",
+      "label": "Impact: data_exfiltration",
+      "type": "impact",
+      "severity": "critical",
+      "count": 110
+    }
+  ],
+  "edges": [
+    {
+      "source": "vec_inj_email_body",
+      "target": "tool_agent_tools",
+      "label": "exploits (168)"
+    },
+    {
+      "source": "vec_inj_doc_content",
+      "target": "tool_agent_tools",
+      "label": "exploits (70)"
+    },
+    {
+      "source": "tool_agent_tools",
+      "target": "impact_privilege_change",
+      "label": "causes (67)"
+    },
+    {
+      "source": "tool_agent_tools",
+      "target": "impact_persistence",
+      "label": "causes (29)"
+    },
+    {
+      "source": "tool_agent_tools",
+      "target": "impact_destructive",
+      "label": "causes (32)"
+    },
+    {
+      "source": "tool_agent_tools",
+      "target": "impact_data_exfiltration",
+      "label": "causes (110)"
+    }
+  ]
+}

@@ -2,7 +2,7 @@
 
 **Attack your AI agent in a sandbox, prove what it actually did, and learn exactly which permission to remove.**
 
-> **Status: planning (v0.1.0 in design).** Nothing below is implemented yet. Commands in *Quick start* are the intended interface and become real milestone by milestone — see [PLAN.md](PLAN.md) §18 (which milestone delivers what) and [CLAUDE.md](CLAUDE.md) (current status).
+> **Status: working prototype (v0.1.0), verified 2026-10-11.** All numbers in the UI, reports and CI output are computed from stored runs against the **simulated (scripted) target** on a synthetic suite (7 attack cases, 10 benign tasks). See [HACKATHON_PRODUCTIZATION_PLAN.md](HACKATHON_PRODUCTIZATION_PLAN.md) for what was verified and [docs/threat-model.md](docs/threat-model.md) for limits.
 
 ---
 
@@ -70,14 +70,13 @@ No API keys are required for the demo. If a target needs a key, you store only t
 
 ### Run
 ```bash
-# 1. backend (http://127.0.0.1:8000, docs at /docs)
-uv run python -m agentbreak.cli seed
+# 1. backend (http://127.0.0.1:8000, docs at /docs) — migrates and seeds the simulated target on start
 uv run uvicorn agentbreak.main:app --host 127.0.0.1 --port 8000 --reload
 
 # 2. frontend (http://localhost:5173) — in a second terminal
 cd frontend && npm run dev
 
-# UI only, no backend (available from milestone M1.4):
+# UI only, no backend: recorded fixtures, labelled "Mock fixtures — not live results" in the header
 cd frontend && npm run dev:mock
 ```
 
@@ -86,7 +85,17 @@ Click **Run demo** on the landing page, or from the terminal:
 ```bash
 uv run python -m agentbreak.cli demo
 ```
-The demo uses the simulated agent, needs no network, and finishes in under a minute.
+The demo uses the simulated agent, needs no network, and finishes in about 25 seconds. It only touches
+the demo target (`tgt_demo_scripted`): it resets it to the full policy, attacks, audits, measures fixes,
+applies the zero-cost Pareto fixes and re-measures. Step-by-step judging script: [docs/demo-script.md](docs/demo-script.md).
+
+### CI security gate
+```bash
+uv run python -m agentbreak.cli ci --policy-file examples/hardened-policy.json --out agentbreak-ci.json
+```
+Measures the policy (all attacks + benign tasks), writes JSON, exits **0** pass · **1** security/benign gate
+failed · **2** infrastructure error (errored runs never pass). Example workflow: [docs/ci-example.yml](docs/ci-example.yml).
+Re-verify any stored verdict from its snapshots: `uv run python -m agentbreak.cli verify <run_id>`.
 
 ### Develop
 ```bash
@@ -100,15 +109,18 @@ Docker (optional): `docker compose --profile demo up --build`.
 
 ## Screens
 
+Light and dark themes (switch in the top bar). Every number comes from stored runs; mock mode is labelled in the header.
+
 | Page | What it shows |
 |---|---|
-| **Landing** | One-line pitch, the three differentiators, and the **Run demo** button |
-| **Dashboard** | Attack success rate, benign-task pass rate, vulnerabilities by severity, recent runs |
-| **Run detail** | Step-by-step replay of tool calls; injected content highlighted amber, the unauthorized action red; state diff; attack graph; evidence and a *Verify* button |
-| **Permission diff** | Granted vs. minimum-needed permissions, and the exploits each excess permission enabled; proof that legitimate tasks still pass |
-| **Fix lab** | Candidate fixes with *attacks blocked*, *tasks broken*, and a **Retest** button; Apply a fix as a new policy version |
-| **Sleeper mode** | Timeline of sessions — plant, dormancy, trigger — with the memory diff |
-| **Report** | Exportable evidence report (Markdown download, print to PDF) with reproducible traces and verify commands |
+| **Overview** (`/`) | Posture under the active policy, findings needing attention, coverage by scenario, recent runs, **Run full demo** with live stage progress |
+| **Findings** | Sortable, filterable table; detail panel with measured evidence and links to trace, permissions and remediation |
+| **Runs** (`/runs/:id`) | Verdict summary, attack path synced with the trace, step detail, path-level PRE/POST state diff, re-verify |
+| **Sleeper testing** | Plant → dormancy → trigger timeline with the chain outcome and per-session memory |
+| **Permission analysis** | Per-tool benign use, exploits enabled (counterfactual), cost of removal, evidence-derived scopes, audited vs active policy diff |
+| **Remediation** | Measured price tags (blocked x/y, broken a/b), Pareto status, applied state, retest, confirmed apply |
+| **Reports** | Evidence report from stored records; Markdown download, print to PDF |
+| **New run** (top bar) | Start one attack case against a target and policy; follows the real job status |
 
 ## Demo walkthrough (90 seconds)
 
@@ -117,8 +129,8 @@ Docker (optional): `docker compose --profile demo up --build`.
 3. **Open the malicious-document run.** A poisoned vendor document makes the agent call `delete_file`. The trace highlights the injected text and the unauthorized call; the state diff shows the budget file gone. Click **Verify** — the verdict is recomputed from stored snapshots.
 4. **Permission diff:** granted 10, needed 8. `delete_file` and `set_role` are never used by any legitimate task; `delete_file` enabled this exploit.
 5. **Fix lab:** *remove `delete_file`* → **blocked 1/7, broken 0/10**. For contrast, *remove `send_email`* → blocked 3/7 but **broken 4/10**, while *restrict `send_email` to the domains legitimate tasks use* → blocked 3/7, broken 0/10.
-6. **Retest** the first fix: the attack now fails and all 10 legitimate tasks still pass. Apply the combined hardening and the dashboard goes to **0/7 attacks succeed, 10/10 tasks pass**.
-7. **Sleeper mode:** payload planted in session 1, dormant in session 2, fires in session 3 — remove `write_memory` and the plant fails.
+6. **Apply & verify:** the demo applies the four zero-cost Pareto fixes one at a time (each re-measured on the policy produced by the previous one), then re-measures the final policy: **0/7 attacks succeed, 10/10 tasks pass, sleeper trigger blocked**.
+7. **Sleeper mode:** under the full policy the payload is planted in session 1, dormant in session 2 and fires in session 3. Under the hardened policy the trigger is blocked — but the poisoned instruction is still in memory, and the page says so.
 8. **Report:** download the Markdown or print it to PDF; every finding includes a command that reproduces its verdict.
 
 ## The four MVP attack scenarios

@@ -40,6 +40,8 @@ def get_connection(db_path: Path | str | None = None) -> sqlite3.Connection:
     if str(db_path) != ":memory:":
         conn.execute("PRAGMA journal_mode = WAL;")
     conn.execute("PRAGMA busy_timeout = 5000;")
+    # Every caller (API, CLI, jobs) gets a schema: migrate() is idempotent via user_version.
+    migrate(conn)
 
     return conn
 

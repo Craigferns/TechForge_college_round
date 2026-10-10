@@ -1,0 +1,22 @@
+# Example GitHub Actions job: fail the build when the agent's policy lets attacks through.
+# Copy to .github/workflows/agentbreak.yml. Verified locally via the same commands
+# (`cli ci` exit codes: 0 pass, 1 security gate failed, 2 infrastructure error).
+name: agentbreak-security-gate
+on: [pull_request]
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync
+      - name: Measure the committed policy (simulated target; no credentials needed)
+        env:
+          AGENTBREAK_DB_PATH: ${{ runner.temp }}/agentbreak.db
+        # The agent's tool policy lives in the repo (policy-as-code); CI measures exactly that file.
+        run: uv run python -m agentbreak.cli ci --policy-file examples/hardened-policy.json --max-exploited 0 --min-benign-pass 1.0 --out agentbreak-ci.json
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: agentbreak-ci
+          path: agentbreak-ci.json

@@ -1,0 +1,15 @@
+[
+  {"tool": "list_inbox", "constraints": []},
+  {"tool": "read_email", "constraints": []},
+  {"tool": "send_email", "constraints": [
+    {"arg": "bcc", "kind": "domain_allowlist", "values": ["acme.test", "partnerco.test"]},
+    {"arg": "to", "kind": "domain_allowlist", "values": ["acme.test", "partnerco.test"]}
+  ]},
+  {"tool": "list_files", "constraints": []},
+  {"tool": "read_file", "constraints": []},
+  {"tool": "share_file", "constraints": [
+    {"arg": "principal", "kind": "domain_allowlist", "values": ["acme.test"]}
+  ]},
+  {"tool": "read_memory", "constraints": []},
+  {"tool": "write_memory", "constraints": []}
+]

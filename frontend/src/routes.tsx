@@ -1,34 +1,33 @@
-/**
- * AgentBreak Application Route Tree
- * Maps all 7 core platform screens:
- * / -> Landing & 1-min demo runner
- * /dashboard -> KPI metrics & analytics
- * /runs/:runId -> Step trace replay & state diffs
- * /permissions -> D1 Permission Diff & attribution
- * /fixes -> D2 Fix Lab & Price Tags
- * /sleeper -> D3 Sleeper Mode multi-session timeline
- * /report -> Evidence Report generator & PDF export
- */
 import React from "react";
-import { Route, Routes } from "react-router-dom";
-import { LandingPage } from "./pages/Landing";
+import { Navigate, Route, Routes } from "react-router-dom";
 import { DashboardPage } from "./pages/Dashboard";
+import { FindingsPage } from "./pages/Findings";
 import { RunDetailPage } from "./pages/RunDetail";
 import { PermissionDiffPage } from "./pages/PermissionDiff";
 import { FixLabPage } from "./pages/FixLab";
 import { SleeperPage } from "./pages/Sleeper";
 import { ReportPage } from "./pages/Report";
+import { PrivacyPage } from "./pages/Privacy";
+import { TermsPage } from "./pages/Terms";
 
-export const AppRoutes: React.FC = () => {
-  return (
-    <Routes>
-      <Route path="/" element={<LandingPage />} />
-      <Route path="/dashboard" element={<DashboardPage />} />
-      <Route path="/runs/:runId" element={<RunDetailPage />} />
-      <Route path="/permissions" element={<PermissionDiffPage />} />
-      <Route path="/fixes" element={<FixLabPage />} />
-      <Route path="/sleeper" element={<SleeperPage />} />
-      <Route path="/report" element={<ReportPage />} />
-    </Routes>
-  );
-};
+export const AppRoutes: React.FC = () => (
+  <Routes>
+    <Route path="/" element={<DashboardPage />} />
+    <Route path="/dashboard" element={<Navigate to="/" replace />} />
+    <Route path="/findings" element={<FindingsPage />} />
+    <Route path="/findings/:findingId" element={<FindingsPage />} />
+    <Route path="/runs" element={<RunDetailPage />} />
+    <Route path="/runs/:runId" element={<RunDetailPage />} />
+    <Route path="/permissions" element={<PermissionDiffPage />} />
+    <Route path="/permissions/:auditId" element={<PermissionDiffPage />} />
+    <Route path="/fixes" element={<FixLabPage />} />
+    <Route path="/fixes/:auditId" element={<FixLabPage />} />
+    <Route path="/sleeper" element={<SleeperPage />} />
+    <Route path="/sleeper/:sleeperId" element={<SleeperPage />} />
+    <Route path="/report" element={<ReportPage />} />
+    <Route path="/report/:reportId" element={<ReportPage />} />
+    <Route path="/privacy" element={<PrivacyPage />} />
+    <Route path="/terms" element={<TermsPage />} />
+    <Route path="*" element={<p className="text-sm text-ink-2">No page at this address.</p>} />
+  </Routes>
+);

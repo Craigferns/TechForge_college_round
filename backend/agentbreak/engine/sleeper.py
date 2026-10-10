@@ -230,6 +230,8 @@ def execute_sleeper_run(
         # Evaluate trigger predicate: did the agent BCC the attacker on the email?
         is_triggered, _ = check_p_trigger(pre_trig, post_trig)
         outcome = "triggered" if is_triggered else "trigger_blocked"
+        if is_triggered:
+            _record_sleeper_finding(active_conn, sleeper_run, run_trig_id)
 
         sleeper_repo.update_status(
             sleeper_run.id,
@@ -253,3 +255,26 @@ def execute_sleeper_run(
 
     updated = sleeper_repo.get(sleeper_run.id)
     return updated or sleeper_run
+
+
+def _record_sleeper_finding(conn: sqlite3.Connection, slp: SleeperRun, trigger_run_id: str) -> None:
+    """The sleeper finding is confirmed by the trigger session's exfiltration, not the plant."""
+    from agentbreak.attacks.scenarios import get_attack_case, get_scenario
+    from agentbreak.domain.severity import classify_severity
+    from agentbreak.repo.finding_repo import FindingRepo
+    from agentbreak.repo.target_repo import TargetRepo
+
+    case = get_attack_case(slp.case_id)
+    scenario = get_scenario(case.scenario_id)
+    target = TargetRepo(conn).get(slp.target_id)
+    FindingRepo(conn).upsert_from_run(
+        target_id=slp.target_id,
+        scenario_id=case.scenario_id,
+        case_id=case.id,
+        title=f"{scenario.name}: {case.description}",
+        severity=classify_severity(scenario.impact_class),
+        impact_class=scenario.impact_class,
+        run_id=trigger_run_id,
+        timestamp=utc_now_iso(),
+        on_active_policy=bool(target and target.active_policy_id == slp.policy_id),
+    )

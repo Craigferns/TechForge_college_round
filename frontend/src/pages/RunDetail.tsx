@@ -1,377 +1,367 @@
 /**
- * Run Detail & Execution Trace Inspector
- * Replays step-by-step agent tool execution, highlights canary/injection markers,
- * visualizes PRE/POST environment state diffs, renders the attack graph, and
- * verifies deterministic verdicts.
+ * Run investigation: verdict summary → attack path → trace timeline ⇄ step detail → evidence / state diff.
+ * Selection is shared: picking a path node selects its trace step and vice versa.
  */
-import React, { useState, useEffect } from "react";
-import { useParams, Link } from "react-router-dom";
-import {
-  Play,
-  Pause,
-  SkipBack,
-  SkipForward,
-  CheckCircle2,
-  AlertOctagon,
-  Copy,
-  Check,
-} from "lucide-react";
-import { Card } from "../components/ui/Card";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { Link, useParams, useSearchParams } from "react-router-dom";
+import { ShieldCheck } from "lucide-react";
+import { apiClient, useApi, useByIdOrLatest } from "../api/client";
+import type { AttackGraph, Run, SnapshotPair, TraceStep, Verdict } from "../api/models";
+import { AttackPath } from "../components/run/AttackPath";
+import { StateDiff } from "../components/run/StateDiff";
 import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
-import { useApi, apiClient } from "../api/client";
-import type { Run, TraceStep, SnapshotPair, AttackGraph, Verdict, GraphNode } from "../api/models";
+import { Card, CardTitle } from "../components/ui/Card";
+import { CopyButton } from "../components/ui/CopyButton";
+import { PageState } from "../components/ui/PageState";
+import { SeverityBadge } from "../components/ui/SeverityBadge";
+
+type Filter = "all" | "flagged" | "tool_call" | "tool_result" | "messages";
+const FILTERS: { id: Filter; label: string }[] = [
+  { id: "all", label: "All" },
+  { id: "flagged", label: "Flagged" },
+  { id: "tool_call", label: "Tool calls" },
+  { id: "tool_result", label: "Tool results" },
+  { id: "messages", label: "Messages" },
+];
+
+function outcome(run: Run): { label: string; variant: "unauthorized" | "allowed" | "medium" | "inconclusive" | "running" } {
+  if (run.status === "error") return { label: "Inconclusive (run errored)", variant: "inconclusive" };
+  if (run.status !== "done") return { label: run.status, variant: "running" };
+  if (run.kind === "benign") return run.utility ? { label: "Benign pass", variant: "allowed" } : { label: "Benign fail", variant: "medium" };
+  if (run.verdict?.success) return { label: "Exploited", variant: "unauthorized" };
+  return { label: `Not exploited (${(run.verdict?.classification ?? "no verdict").replace(/_/g, " ")})`, variant: "allowed" };
+}
+
+const StepFlags: React.FC<{ s: TraceStep }> = ({ s }) => (
+  <>
+    {s.flags?.injected && <Badge variant="injected">Injected content</Badge>}
+    {s.flags?.unauthorized && <Badge variant="unauthorized">Unauthorized</Badge>}
+    {s.flags?.denied && <Badge variant="denied">Denied by policy</Badge>}
+  </>
+);
 
 export const RunDetailPage: React.FC = () => {
   const { runId } = useParams<{ runId: string }>();
-  const activeRunId = runId || "run_demo_as04";
+  const [params] = useSearchParams();
+  const caseId = params.get("case");
+  const runRes = useByIdOrLatest<Run>("/runs", runId, `&kind=attack${caseId ? `&case_id=${encodeURIComponent(caseId)}` : ""}`);
+  const run = runRes.data;
+  const id = runRes.id;
+  const trace = useApi<TraceStep[]>(id ? `/runs/${id}/trace` : null);
+  const snapshots = useApi<SnapshotPair>(id ? `/runs/${id}/snapshots` : null);
+  const graph = useApi<AttackGraph>(id ? `/runs/${id}/graph` : null);
 
-  const { data: run } = useApi<Run>(`/runs/${activeRunId}`);
-  const { data: trace } = useApi<TraceStep[]>(`/runs/${activeRunId}/trace`);
-  const { data: snapshots } = useApi<SnapshotPair>(`/runs/${activeRunId}/snapshots`);
-  const { data: graph } = useApi<AttackGraph>(`/runs/${activeRunId}/graph`);
+  const [selected, setSelected] = useState<number | null>(null);
+  const [filter, setFilter] = useState<Filter>("all");
+  const [tab, setTab] = useState<"evidence" | "diff" | "repro">("evidence");
+  const [verify, setVerify] = useState<{ state: "idle" | "busy" } | { state: "done"; v: Verdict } | { state: "error"; msg: string }>({ state: "idle" });
+  const listRef = useRef<HTMLOListElement>(null);
 
-  const [activeStepIdx, setActiveStepIdx] = useState(0);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [activeTab, setActiveTab] = useState<"diff" | "graph" | "evidence" | "repro">("diff");
-  const [isVerifying, setIsVerifying] = useState(false);
-  const [verifyResult, setVerifyResult] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
-
-  // Playback timer
+  // Default selection: the first flagged step (the interesting one), else the first step.
   useEffect(() => {
-    let timer: ReturnType<typeof setInterval>;
-    if (isPlaying && trace && trace.length > 0) {
-      timer = setInterval(() => {
-        setActiveStepIdx((prev) => {
-          if (prev >= trace.length - 1) {
-            setIsPlaying(false);
-            return prev;
-          }
-          return prev + 1;
-        });
-      }, 1200);
-    }
-    return () => clearInterval(timer);
-  }, [isPlaying, trace]);
+    if (!trace.data?.length) return;
+    const flagged = trace.data.find((s) => s.flags?.unauthorized || s.flags?.injected);
+    setSelected((flagged ?? trace.data[0]).idx);
+    setVerify({ state: "idle" });
+  }, [trace.data]);
 
-  const handleVerify = async () => {
-    setIsVerifying(true);
-    setVerifyResult(null);
-    try {
-      const result = await apiClient<Verdict>(`/runs/${activeRunId}/verify`, { method: "POST" });
-      setVerifyResult(
-        result.matches_stored
-          ? "Verdict verified: 100% byte-match against stored environment state diffs"
-          : "Verdict mismatch detected!"
-      );
-    } catch {
-      setVerifyResult("Verification failed");
-    } finally {
-      setIsVerifying(false);
+  const visible = useMemo(
+    () =>
+      (trace.data ?? []).filter((s) =>
+        filter === "all"
+          ? true
+          : filter === "flagged"
+            ? s.flags?.injected || s.flags?.unauthorized || s.flags?.denied
+            : filter === "messages"
+              ? s.kind !== "tool_call" && s.kind !== "tool_result"
+              : s.kind === filter
+      ),
+    [trace.data, filter]
+  );
+  const step = trace.data?.find((s) => s.idx === selected) ?? null;
+
+  const selectStep = (idx: number) => {
+    setSelected(idx);
+    if (!visible.some((s) => s.idx === idx)) setFilter("all"); // keep the selection visible
+    requestAnimationFrame(() => listRef.current?.querySelector<HTMLElement>(`[data-idx="${idx}"]`)?.scrollIntoView({ block: "nearest" }));
+  };
+
+  const onListKey = (e: React.KeyboardEvent) => {
+    if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
+    e.preventDefault();
+    const pos = visible.findIndex((s) => s.idx === selected);
+    const next = visible[Math.min(visible.length - 1, Math.max(0, pos + (e.key === "ArrowDown" ? 1 : -1)))];
+    if (next) {
+      setSelected(next.idx);
+      listRef.current?.querySelector<HTMLElement>(`[data-idx="${next.idx}"]`)?.focus();
     }
   };
 
-  const currentStep = trace ? trace[activeStepIdx] : null;
+  const runVerify = async () => {
+    if (!id) return;
+    setVerify({ state: "busy" });
+    try {
+      setVerify({ state: "done", v: await apiClient<Verdict>(`/runs/${id}/verify`, { method: "POST" }) });
+    } catch (e) {
+      setVerify({ state: "error", msg: e instanceof Error ? e.message : String(e) });
+    }
+  };
+
+  if (runRes.loading || runRes.error || runRes.empty || !run) {
+    return (
+      <PageState
+        loading={runRes.loading}
+        error={runRes.error}
+        empty={runRes.empty || !run}
+        emptyText="No attack runs recorded yet. Start one with New run, or run the full demo from the Overview."
+        rows={6}
+      />
+    );
+  }
+
+  const o = outcome(run);
+  const verifyCmd = `uv run python -m agentbreak.cli verify ${id}`;
 
   return (
-    <div className="max-w-6xl mx-auto px-6 py-8 space-y-8">
-      {/* Top Banner */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-6 border-b border-slate-800">
-        <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold text-white tracking-tight">Run Replay: {activeRunId}</h1>
-            <Badge variant="unauthorized">EXPLOITED</Badge>
-            <Badge variant="high">HIGH SEVERITY</Badge>
+    <div className="max-w-7xl space-y-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0 space-y-1.5">
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="text-lg font-semibold text-ink font-mono truncate">{id}</h1>
+            <Badge variant={o.variant}>{o.label}</Badge>
+            {run.verdict?.success && run.verdict.severity && run.verdict.severity !== "none" && <SeverityBadge severity={run.verdict.severity} />}
           </div>
-          <p className="text-xs text-slate-400 mt-1">
-            Scenario: <span className="font-semibold text-slate-300">{run?.scenario_id}</span> ({run?.case_id}) · Carrier Task: {run?.user_task_id}
+          <p className="text-xs text-ink-2">
+            {run.case_id ? (
+              <>
+                Case <span className="font-mono text-ink">{run.case_id}</span> ({run.scenario_id}), carrier task{" "}
+              </>
+            ) : (
+              "Benign task "
+            )}
+            <span className="font-mono text-ink">{run.user_task_id}</span>, policy <span className="font-mono text-ink">{run.policy_id}</span>
+            {run.repro?.sleeper_id ? (
+              <>
+                , {String(run.repro.session)} session of sleeper chain{" "}
+                <Link className="font-mono text-action hover:underline" to={`/sleeper/${String(run.repro.sleeper_id)}`}>
+                  {String(run.repro.sleeper_id)}
+                </Link>
+              </>
+            ) : null}
+            {run.started_at && run.finished_at && (
+              <>, took {Math.max(1, Math.round(new Date(run.finished_at).getTime() - new Date(run.started_at).getTime()))} ms</>
+            )}
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <Link to="/permissions">
-            <Button variant="outline" size="sm">
-              See Enabling Permission
-            </Button>
+          <Link to="/permissions" className="text-xs text-action hover:underline">
+            Which permission enabled this
           </Link>
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={handleVerify}
-            loading={isVerifying}
-            icon={<CheckCircle2 className="w-4 h-4" />}
-          >
-            Verify Verdict Hash
+          <Button variant="secondary" size="sm" icon={<ShieldCheck className="w-3.5 h-3.5" />} loading={verify.state === "busy"} onClick={runVerify} disabled={!run.verdict}>
+            Re-verify verdict
           </Button>
         </div>
       </div>
 
-      {verifyResult && (
-        <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs flex items-center justify-between">
-          <span className="flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-            {verifyResult}
-          </span>
-          <span className="font-mono text-[10px] text-slate-400">Deterministic Pure AST Engine</span>
-        </div>
+      {run.error && (
+        <p role="alert" className="text-xs rounded-md border border-infra/35 bg-infra/5 p-2.5 text-ink">
+          Run error: <span className="font-mono">{run.error}</span>. Inconclusive runs are never counted as blocked or passed.
+        </p>
+      )}
+      {verify.state === "done" && (
+        <p role="status" className={`text-xs rounded-md border p-2.5 text-ink ${verify.v.matches_stored ? "border-ok/40 bg-ok/5" : "border-vuln/40 bg-vuln/5"}`}>
+          {verify.v.matches_stored
+            ? "Match: the verdict recomputed from the stored PRE/POST snapshots equals the stored verdict hash."
+            : "Mismatch: the recomputed verdict differs from the stored one. Treat this run's verdict as unreliable."}{" "}
+          <span className="font-mono text-ink-3 break-all">{verify.v.verdict_hash}</span>
+        </p>
+      )}
+      {verify.state === "error" && (
+        <p role="alert" className="text-xs rounded-md border border-infra/35 bg-infra/5 p-2.5 text-ink">
+          Verification could not run: {verify.msg}
+        </p>
       )}
 
-      {/* Interactive Trace Stepper Card */}
-      <Card className="space-y-6 bg-slate-900/90 border-slate-800">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800">
-          <div>
-            <h2 className="text-base font-semibold text-white">Execution Trace Replay</h2>
-            <p className="text-xs text-slate-400">Step {activeStepIdx + 1} of {trace?.length || 0}</p>
-          </div>
+      {run.kind === "attack" && (
+        <Card>
+          <CardTitle className="mb-3">Attack path</CardTitle>
+          <PageState loading={graph.loading} error={graph.error} rows={1} />
+          {graph.data && <AttackPath graph={graph.data} verdict={run.verdict} selectedStep={selected} onSelectStep={selectStep} />}
+        </Card>
+      )}
 
-          {/* Stepper Controls */}
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setActiveStepIdx((p) => Math.max(0, p - 1))}
-              disabled={activeStepIdx === 0}
-              icon={<SkipBack className="w-4 h-4" />}
-            />
-            <Button
-              variant={isPlaying ? "secondary" : "primary"}
-              size="sm"
-              onClick={() => setIsPlaying(!isPlaying)}
-              icon={isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 fill-current" />}
-            >
-              {isPlaying ? "Pause" : "Play Replay"}
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setActiveStepIdx((p) => Math.min((trace?.length || 1) - 1, p + 1))}
-              disabled={!trace || activeStepIdx >= trace.length - 1}
-              icon={<SkipForward className="w-4 h-4" />}
-            />
-          </div>
-        </div>
-
-        {/* Step Timeline Indicator */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-2">
-          {trace?.map((s, idx) => {
-            const isSelected = idx === activeStepIdx;
-            const isInjected = s.flags?.injected;
-            const isUnauthorized = s.flags?.unauthorized;
-
-            let dotColor = "bg-slate-700 hover:bg-slate-600";
-            if (isInjected) dotColor = "bg-amber-500 hover:bg-amber-400";
-            if (isUnauthorized) dotColor = "bg-red-500 hover:bg-red-400";
-
-            return (
-              <button
-                key={s.idx}
-                onClick={() => {
-                  setActiveStepIdx(idx);
-                  setIsPlaying(false);
-                }}
-                className={`h-2.5 rounded-full transition-all cursor-pointer ${
-                  isSelected ? "w-8 ring-2 ring-emerald-400 " + dotColor : "w-3 " + dotColor
-                }`}
-                title={`Step ${idx + 1}: ${s.kind}`}
-              />
-            );
-          })}
-        </div>
-
-        {/* Active Step Content Inspector */}
-        {currentStep && (
-          <div className="rounded-xl border border-slate-800 bg-slate-950 p-5 space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <span className="text-xs font-mono font-bold text-slate-500">STEP {currentStep.idx}</span>
-                <Badge variant="outline" className="font-mono">{currentStep.role.toUpperCase()}</Badge>
-                <span className="text-xs font-semibold text-slate-300 font-mono">
-                  {currentStep.kind === "tool_call" || currentStep.kind === "tool_result"
-                    ? `${currentStep.kind}: ${currentStep.tool}()`
-                    : currentStep.kind}
-                </span>
-              </div>
-
-              {/* Flags */}
-              <div className="flex items-center gap-2">
-                {currentStep.flags?.injected && (
-                  <Badge variant="injected">INJECTED CONTENT</Badge>
-                )}
-                {currentStep.flags?.unauthorized && (
-                  <Badge variant="unauthorized">UNAUTHORIZED ACTION</Badge>
-                )}
-              </div>
-            </div>
-
-            {/* Arguments or Content */}
-            {currentStep.args && (
-              <div className="space-y-1">
-                <span className="text-[11px] font-mono text-slate-500 uppercase">Arguments:</span>
-                <pre className="text-xs bg-slate-900 border border-slate-800 p-3 rounded-lg text-emerald-300 font-mono overflow-x-auto">
-                  {JSON.stringify(currentStep.args, null, 2)}
-                </pre>
-              </div>
-            )}
-
-            {currentStep.content && (
-              <div className="space-y-1">
-                <span className="text-[11px] font-mono text-slate-500 uppercase">Output / Payload:</span>
-                <div
-                  className={`text-xs p-3.5 rounded-lg border leading-relaxed font-mono whitespace-pre-wrap ${
-                    currentStep.flags?.injected
-                      ? "bg-amber-500/10 border-amber-500/40 text-amber-200"
-                      : currentStep.flags?.unauthorized
-                      ? "bg-red-500/10 border-red-500/40 text-red-200"
-                      : "bg-slate-900 border-slate-800 text-slate-300"
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
+        <Card className="p-0 sm:p-0 overflow-hidden flex flex-col max-h-[70vh]">
+          <div className="px-4 py-3 border-b border-line space-y-2">
+            <CardTitle>Execution trace</CardTitle>
+            <div className="flex flex-wrap gap-1" role="group" aria-label="Filter trace steps">
+              {FILTERS.map((f) => (
+                <button
+                  key={f.id}
+                  aria-pressed={filter === f.id}
+                  onClick={() => setFilter(f.id)}
+                  className={`rounded px-2 py-0.5 text-[11px] ring-1 ring-inset transition-colors duration-150 ${
+                    filter === f.id ? "bg-action/10 text-action ring-action/40" : "text-ink-2 ring-line-strong hover:text-ink"
                   }`}
                 >
-                  {currentStep.content}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-      </Card>
-
-      {/* Tabs for State Diff, Attack Graph, Evidence, Repro */}
-      <Card className="space-y-4">
-        {/* Tab Headers */}
-        <div className="flex items-center gap-4 border-b border-slate-800 pb-3 text-xs font-medium">
-          <button
-            onClick={() => setActiveTab("diff")}
-            className={`pb-2 transition cursor-pointer ${
-              activeTab === "diff"
-                ? "text-emerald-400 border-b-2 border-emerald-400 font-semibold"
-                : "text-slate-400 hover:text-white"
-            }`}
-          >
-            State Diff (Deterministic Proof)
-          </button>
-          <button
-            onClick={() => setActiveTab("graph")}
-            className={`pb-2 transition cursor-pointer ${
-              activeTab === "graph"
-                ? "text-emerald-400 border-b-2 border-emerald-400 font-semibold"
-                : "text-slate-400 hover:text-white"
-            }`}
-          >
-            Attack Graph
-          </button>
-          <button
-            onClick={() => setActiveTab("evidence")}
-            className={`pb-2 transition cursor-pointer ${
-              activeTab === "evidence"
-                ? "text-emerald-400 border-b-2 border-emerald-400 font-semibold"
-                : "text-slate-400 hover:text-white"
-            }`}
-          >
-            Evidence & Verdict
-          </button>
-          <button
-            onClick={() => setActiveTab("repro")}
-            className={`pb-2 transition cursor-pointer ${
-              activeTab === "repro"
-                ? "text-emerald-400 border-b-2 border-emerald-400 font-semibold"
-                : "text-slate-400 hover:text-white"
-            }`}
-          >
-            Reproduce Command
-          </button>
-        </div>
-
-        {/* Tab Content */}
-        {activeTab === "diff" && snapshots && (
-          <div className="space-y-4 py-2">
-            <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/30 text-xs text-red-300 flex items-center justify-between">
-              <span className="flex items-center gap-2">
-                <AlertOctagon className="w-4 h-4 text-red-400" />
-                <span>State Diff Detected: 1 file deleted in post-environment</span>
-              </span>
-              <Badge variant="unauthorized">P-DELETE: TRUE</Badge>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-mono">
-              <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
-                <span className="text-slate-500 font-semibold">PRE-ENVIRONMENT SNAPSHOT</span>
-                <pre className="text-slate-300 overflow-x-auto">{JSON.stringify(snapshots.pre, null, 2)}</pre>
-              </div>
-              <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
-                <span className="text-slate-500 font-semibold">POST-ENVIRONMENT SNAPSHOT</span>
-                <pre className="text-red-300 overflow-x-auto">{JSON.stringify(snapshots.post, null, 2)}</pre>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {activeTab === "graph" && graph && (
-          <div className="py-6 flex flex-col items-center justify-center space-y-6">
-            <div className="flex flex-col sm:flex-row items-center gap-4">
-              {graph.nodes.map((node: GraphNode, i: number) => (
-                <React.Fragment key={node.id}>
-                  <div
-                    className={`p-4 rounded-xl border text-xs font-mono text-center shadow-md ${
-                      node.type === "vector"
-                        ? "bg-amber-500/10 border-amber-500/30 text-amber-300"
-                        : node.type === "tool"
-                        ? "bg-slate-800 border-slate-700 text-slate-200"
-                        : "bg-red-500/10 border-red-500/30 text-red-300"
-                    }`}
-                  >
-                    <span className="block text-[10px] text-slate-500 uppercase">{node.type}</span>
-                    <span className="font-semibold">{node.label}</span>
-                  </div>
-                  {i < graph.nodes.length - 1 && (
-                    <span className="text-slate-600 font-mono text-xs">→</span>
-                  )}
-                </React.Fragment>
+                  {f.label}
+                </button>
               ))}
             </div>
           </div>
-        )}
+          <div className="px-4">
+            <PageState loading={trace.loading} error={trace.error} rows={5} />
+          </div>
+          <ol ref={listRef} className="overflow-y-auto divide-y divide-line" onKeyDown={onListKey} aria-label="Trace steps">
+            {visible.map((s) => {
+              const isSel = s.idx === selected;
+              return (
+                <li key={s.idx}>
+                  <button
+                    data-idx={s.idx}
+                    onClick={() => setSelected(s.idx)}
+                    aria-current={isSel ? "step" : undefined}
+                    className={`w-full text-left px-4 py-2 flex items-start gap-2.5 transition-colors duration-150 ${
+                      isSel ? "bg-action/10 shadow-[inset_2px_0_0_rgb(var(--action-primary))]" : "hover:bg-surface-muted"
+                    }`}
+                  >
+                    <span className="font-mono text-[11px] text-ink-3 w-6 shrink-0 pt-0.5">{s.idx}</span>
+                    <span className="min-w-0 space-y-1">
+                      <span className="block text-xs text-ink">
+                        <span className="text-ink-2">{s.kind.replace("_", " ")}</span>
+                        {s.tool && <span className="font-mono"> {s.tool}</span>}
+                      </span>
+                      <span className="flex flex-wrap gap-1">
+                        <StepFlags s={s} />
+                      </span>
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+            {trace.data && !visible.length && <li className="px-4 py-4 text-xs text-ink-2">No steps match this filter.</li>}
+          </ol>
+        </Card>
 
-        {activeTab === "evidence" && run?.verdict && (
-          <div className="py-2 space-y-4 text-xs">
-            <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-3 font-mono">
-              <div className="flex items-center justify-between pb-2 border-b border-slate-800">
-                <span className="text-slate-400">Verdict Classification:</span>
-                <span className="text-red-400 font-bold">{run.verdict?.classification?.toUpperCase() ?? "UNKNOWN"}</span>
-              </div>
-              <div className="flex items-center justify-between pb-2 border-b border-slate-800">
-                <span className="text-slate-400">Verdict Hash:</span>
-                <span className="text-slate-300">{run.verdict?.verdict_hash ?? "N/A"}</span>
-              </div>
-              <div className="space-y-1">
-                <span className="text-slate-400">State Diff Evidence:</span>
-                <div className="p-3 rounded-lg bg-slate-900 border border-slate-800 text-slate-200">
-                  {run.verdict?.evidence?.[0]?.detail ?? "State diff verification confirmed payload effect."}
+        <div className="space-y-4 min-w-0">
+          <Card>
+            {step ? (
+              <div className="space-y-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <CardTitle>
+                    Step {step.idx}: {step.kind.replace("_", " ")}
+                    {step.tool && <span className="font-mono font-normal"> {step.tool}</span>}
+                  </CardTitle>
+                  <StepFlags s={step} />
+                  {step.caused_by_idx != null && (
+                    <button className="text-[11px] text-action hover:underline" onClick={() => selectStep(step.caused_by_idx as number)}>
+                      caused by step {step.caused_by_idx}
+                    </button>
+                  )}
                 </div>
+                {step.args && (
+                  <div>
+                    <div className="flex items-center justify-between">
+                      <p className="text-[11px] text-ink-3">Arguments</p>
+                      <CopyButton text={JSON.stringify(step.args, null, 2)} label="Copy arguments" />
+                    </div>
+                    <pre className="mt-1 overflow-x-auto rounded-md border border-line bg-surface-muted p-2.5 text-[12px] leading-relaxed text-term">
+                      {JSON.stringify(step.args, null, 2)}
+                    </pre>
+                  </div>
+                )}
+                {step.content && (
+                  <div>
+                    <div className="flex items-center justify-between">
+                      <p className="text-[11px] text-ink-3">{step.flags?.injected ? "Content (untrusted, contains injected text)" : "Content"}</p>
+                      <CopyButton text={step.content} label="Copy content" />
+                    </div>
+                    <pre
+                      className={`mt-1 max-h-64 overflow-auto whitespace-pre-wrap break-words rounded-md border p-2.5 text-[12px] leading-relaxed text-ink ${
+                        step.flags?.injected ? "border-warn/40 bg-warn/5" : "border-line bg-surface-muted"
+                      }`}
+                    >
+                      {step.content}
+                    </pre>
+                  </div>
+                )}
+                {!step.args && !step.content && <p className="text-xs text-ink-2">This step recorded no arguments or content.</p>}
               </div>
-            </div>
-          </div>
-        )}
+            ) : (
+              <p className="text-xs text-ink-2">Select a trace step.</p>
+            )}
+          </Card>
 
-        {activeTab === "repro" && (
-          <div className="py-2 space-y-3">
-            <p className="text-xs text-slate-400">
-              Run this deterministic command in your shell to replay and verify this run identically:
-            </p>
-            <div className="flex items-center justify-between p-3.5 rounded-xl bg-slate-950 border border-slate-800 font-mono text-xs text-emerald-400">
-              <span>uv run python -m agentbreak.cli replay {activeRunId}</span>
-              <button
-                onClick={() => {
-                  navigator.clipboard.writeText(`uv run python -m agentbreak.cli replay ${activeRunId}`);
-                  setCopied(true);
-                  setTimeout(() => setCopied(false), 2000);
-                }}
-                className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition cursor-pointer"
-                title="Copy command"
-              >
-                {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
-              </button>
+          <Card className="space-y-3">
+            <div className="flex gap-1 border-b border-line -mx-4 sm:-mx-5 px-4 sm:px-5" role="tablist" aria-label="Run evidence">
+              {(
+                [
+                  ["evidence", "Verdict evidence"],
+                  ["diff", "State diff"],
+                  ["repro", "Reproduce"],
+                ] as const
+              ).map(([k, label]) => (
+                <button
+                  key={k}
+                  role="tab"
+                  aria-selected={tab === k}
+                  onClick={() => setTab(k)}
+                  className={`-mb-px border-b-2 px-2.5 py-2 text-xs transition-colors duration-150 ${
+                    tab === k ? "border-action text-ink font-medium" : "border-transparent text-ink-2 hover:text-ink"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
             </div>
-          </div>
-        )}
-      </Card>
+            <div role="tabpanel">
+              {tab === "evidence" &&
+                (run.verdict ? (
+                  <div className="space-y-2 text-xs">
+                    <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
+                      <dt className="text-ink-3">Classification</dt>
+                      <dd className={`font-mono ${run.verdict.success ? "text-vuln" : "text-term"}`}>{run.verdict.classification}</dd>
+                      <dt className="text-ink-3">Impact</dt>
+                      <dd className="font-mono text-ink">{run.verdict.impact_class ?? "none"}</dd>
+                      <dt className="text-ink-3">Verdict hash</dt>
+                      <dd className="font-mono text-ink-2 break-all">{run.verdict.verdict_hash}</dd>
+                    </dl>
+                    {run.verdict.evidence?.length ? (
+                      <ul className="space-y-1.5">
+                        {run.verdict.evidence.map((e, i) => (
+                          <li key={i} className="rounded-md border border-line bg-surface-muted p-2">
+                            <span className="font-mono text-term">{e.type}</span> <span className="font-mono text-ink-3">{e.path}</span>
+                            <span className="block text-ink mt-0.5">{e.detail}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="text-ink-2">No state-diff or canary evidence: nothing protected changed.</p>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-xs text-ink-2">No verdict recorded for this run.</p>
+                ))}
+              {tab === "diff" && (
+                <>
+                  <PageState loading={snapshots.loading} error={snapshots.error} rows={3} />
+                  {snapshots.data && <StateDiff pre={snapshots.data.pre} post={snapshots.data.post} />}
+                </>
+              )}
+              {tab === "repro" && (
+                <div className="space-y-2 text-xs">
+                  <p className="text-ink-2">Recompute this verdict from the stored snapshots. Exit 0 means it matches the stored hash.</p>
+                  <div className="flex items-center justify-between gap-2 rounded-md border border-line bg-surface-muted px-2.5 py-1.5">
+                    <code className="text-term break-all">{verifyCmd}</code>
+                    <CopyButton text={verifyCmd} label="Copy verify command" />
+                  </div>
+                </div>
+              )}
+            </div>
+          </Card>
+        </div>
+      </div>
     </div>
   );
 };

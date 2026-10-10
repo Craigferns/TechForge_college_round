@@ -1,22 +1,58 @@
 {
-  "id": "demo_live_run",
+  "id": "demo_11593613",
   "status": "completed",
-  "stage": "Audit & Remediation complete",
+  "stage": "All stages completed",
   "stages": [
-    { "id": "s1", "name": "Sandbox Environment Initialization", "status": "completed", "detail": "Acme environment loaded with 10 tools" },
-    { "id": "s2", "name": "Base Security Evaluation (7 Attacks)", "status": "completed", "detail": "7/7 exploits succeeded (5 Critical, 2 High)" },
-    { "id": "s3", "name": "Benign Ground Truth Baseline", "status": "completed", "detail": "10/10 legitimate tasks passed (100%)" },
-    { "id": "s4", "name": "Permission Diff & Attribution (D1)", "status": "completed", "detail": "Attributed to 2 excess permissions (delete_file, set_role)" },
-    { "id": "s5", "name": "Fix Price Tag Measurement (D2)", "status": "completed", "detail": "Combined hardening policy: 7/7 blocked, 0/10 broken" },
-    { "id": "s6", "name": "Cross-Session Sleeper Validation (D3)", "status": "completed", "detail": "Memory persistence attack verified" }
+    {
+      "id": "seed",
+      "name": "Reset & seed",
+      "status": "completed",
+      "detail": "Target 'tgt_demo_scripted' (simulated) reset to policy 'pol_full'."
+    },
+    {
+      "id": "attacks",
+      "name": "Attack evaluation",
+      "status": "completed",
+      "detail": "7/7 attacks confirmed by state diff (5 critical, 2 high); sleeper outcome: triggered"
+    },
+    {
+      "id": "benign",
+      "name": "Benign ground truth",
+      "status": "completed",
+      "detail": "10/10 benign tasks pass under the full policy."
+    },
+    {
+      "id": "audit",
+      "name": "Permission audit",
+      "status": "completed",
+      "detail": "Granted 10, needed 8, excess 2 (delete_file, set_role); minimal policy keeps 10/10 benign tasks passing."
+    },
+    {
+      "id": "fixes",
+      "name": "Fix price tags",
+      "status": "completed",
+      "detail": "12 fixes measured; 7 Pareto-optimal."
+    },
+    {
+      "id": "remediate",
+      "name": "Apply & verify",
+      "status": "completed",
+      "detail": "Applied 4 fixes (remove_permission:delete_file, remove_permission:set_role, restrict_arg:send_email, restrict_arg:share_file). Re-measured policy 'pol_35d80360': 0/7 attacks succeed, 10/10 benign pass, sleeper trigger_blocked."
+    },
+    {
+      "id": "report",
+      "name": "Evidence report",
+      "status": "completed",
+      "detail": "Report rep_67e1fe9e generated."
+    }
   ],
   "links": {
     "dashboard": "/dashboard",
-    "run": "/runs/run_demo_as04",
-    "audit": "/permissions",
-    "fixlab": "/fixes",
-    "sleeper": "/sleeper",
-    "report": "/report"
+    "run": "/runs/run_demo_11593613_as-04",
+    "audit": "/permissions/aud_a39da8b20206",
+    "fixlab": "/fixes/aud_a39da8b20206",
+    "sleeper": "/sleeper/slp_77a3881af7ba",
+    "report": "/report/rep_67e1fe9e"
   },
   "error": null
 }

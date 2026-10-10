@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import datetime
-import hashlib
 import sqlite3
 from typing import Any
 
@@ -11,6 +10,7 @@ from agentbreak.attacks.scenarios import CASE_VECTOR_MAP, get_attack_case, get_s
 from agentbreak.attacks.templates import DEFAULT_TEMPLATE_ID, render_payload
 from agentbreak.config import get_settings
 from agentbreak.db import get_connection
+from agentbreak.domain.verdict import evaluate_verdict
 from agentbreak.engine.loop import run_once
 from agentbreak.engine.tracing import messages_to_trace_steps
 from agentbreak.repo.policy_repo import PolicyRepo
@@ -29,7 +29,7 @@ from agentbreak.sandbox.acme.user_tasks import (
     BT09_ShareRoadmapWithKim,
     BT10_EmailSummaryToSam,
 )
-from agentbreak.schemas.run import Run, Verdict
+from agentbreak.schemas.run import Run
 from agentbreak.targets.base import BaseTarget
 from agentbreak.targets.factory import create_target
 
@@ -175,36 +175,57 @@ def execute_run(
         run_repo.save_snapshot(run.id, "pre", outcome.pre.model_dump())
         run_repo.save_snapshot(run.id, "post", outcome.post.model_dump())
 
-        # 8. Compute and persist verdict
+        # 8. Compute and persist verdict using deterministic state diff engine
         finished_at = utc_now_iso()
-        scenario = None
-        if run.scenario_id:
-            try:
-                scenario = get_scenario(run.scenario_id)
-            except KeyError:
-                pass
+        is_control = bool(run.repro and run.repro.get("is_control"))
+        profile_obj = getattr(target, "profile", None)
+        says_only = bool(profile_obj and getattr(profile_obj, "says_only", False))
 
-        verdict_hash_raw = f"{outcome.security}:{run.id}:{finished_at}"
-        verdict_hash = f"sha256:{hashlib.sha256(verdict_hash_raw.encode()).hexdigest()}"
-
-        verdict = Verdict(
-            success=bool(outcome.security) if outcome.security is not None else False,
-            classification="exploited" if outcome.security else "blocked",
-            impact_class=scenario.impact_class if scenario else None,
-            severity=scenario.severity if scenario else None,
-            evidence=[],
-            verifier_version="agentbreak-v0.1.0",
-            verdict_hash=verdict_hash,
+        verdict = evaluate_verdict(
+            case_id=run.case_id,
+            pre=outcome.pre,
+            post=outcome.post,
             created_at=finished_at,
+            is_control=is_control,
+            says_only=says_only,
         )
         run_repo.save_verdict(run.id, verdict)
 
-        # 9. Update final run status
+        # 9. Upsert finding if verdict is exploited
+        # Sleeper-chain sessions are judged end-to-end by engine/sleeper.py, not per session.
+        in_sleeper_chain = bool(run.repro and run.repro.get("sleeper_id"))
+        if (
+            verdict.success
+            and verdict.classification == "exploited"
+            and run.case_id
+            and not in_sleeper_chain
+        ):
+            # Not wrapped: a failed finding write is a persistence error and must fail the run.
+            from agentbreak.repo.finding_repo import FindingRepo
+
+            case = get_attack_case(run.case_id)
+            scenario = get_scenario(case.scenario_id)
+            target_row = target_repo.get(run.target_id)
+            FindingRepo(active_conn).upsert_from_run(
+                target_id=run.target_id,
+                scenario_id=case.scenario_id,
+                case_id=case.id,
+                title=f"{scenario.name}: {case.description}",
+                severity=verdict.severity or "medium",
+                impact_class=verdict.impact_class or scenario.impact_class,
+                run_id=run.id,
+                timestamp=finished_at,
+                success_rate=1.0,
+                confidence="confirmed",
+                on_active_policy=bool(target_row and target_row.active_policy_id == run.policy_id),
+            )
+
+        # 10. Update final run status
         run_repo.update_status(
             run_id=run.id,
             status="done",
             utility=outcome.utility,
-            security=outcome.security,
+            security=verdict.success if run.kind == "attack" else None,
             model_output=outcome.model_output,
             finished_at=finished_at,
         )

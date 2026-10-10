@@ -651,6 +651,22 @@
             }
           },
           {
+            "name": "case_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Case Id"
+            }
+          },
+          {
             "name": "ids",
             "in": "query",
             "required": false,
@@ -893,7 +909,7 @@
           "runs"
         ],
         "summary": "Verify Run",
-        "description": "Deterministically re-verify environment state diff predicates and canary tokens.",
+        "description": "Recompute the verdict from stored PRE/POST snapshots and compare it to the stored hash.",
         "operationId": "verify_run_api_v1_runs__run_id__verify_post",
         "parameters": [
           {
@@ -1734,7 +1750,7 @@
           "audits"
         ],
         "summary": "List Fix Suggestions",
-        "description": "List candidate policy fixes suggested by the audit findings.",
+        "description": "List candidate policy fixes suggested deterministically by the audit findings.",
         "operationId": "list_fix_suggestions_api_v1_audits__audit_id__fixes_get",
         "parameters": [
           {
@@ -2086,7 +2102,7 @@
           "dashboard"
         ],
         "summary": "Get Dashboard Summary",
-        "description": "Return high-level security metrics, severity breakdown, and recent runs.",
+        "description": "Current posture under the target's active policy (see DashboardSummary docstring).",
         "operationId": "get_dashboard_summary_api_v1_dashboard_summary_get",
         "parameters": [
           {
@@ -2324,7 +2340,7 @@
           "dashboard"
         ],
         "summary": "Run Demo",
-        "description": "Launch the 1-minute live demo scan across attack scenarios.",
+        "description": "Start the demo in the background; poll GET /demo/{id} for real stage progress.",
         "operationId": "run_demo_api_v1_demo_run_post",
         "responses": {
           "202": {
@@ -2543,6 +2559,33 @@
       },
       "DashboardSummary": {
         "properties": {
+          "active_policy_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Active Policy Id"
+          },
+          "sleeper_outcome": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sleeper Outcome"
+          },
+          "inconclusive": {
+            "type": "integer",
+            "title": "Inconclusive",
+            "default": 0
+          },
           "attack_success_rate": {
             "type": "number",
             "title": "Attack Success Rate"
@@ -2612,7 +2655,8 @@
           "fixes_applied",
           "recent_runs"
         ],
-        "title": "DashboardSummary"
+        "title": "DashboardSummary",
+        "description": "Current posture of one target: the latest completed result per attack case and\nbenign task under the target's ACTIVE policy (AS-05 from its latest sleeper chain).\nRuns under other policies (baselines, counterfactuals, fix measurements) are excluded."
       },
       "DemoLinks": {
         "properties": {
@@ -3317,6 +3361,45 @@
             },
             "type": "array",
             "title": "Broken Tasks"
+          },
+          "inconclusive": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Inconclusive"
+          },
+          "sleeper_outcome": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sleeper Outcome"
+          },
+          "run_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Run Ids"
+          },
+          "before_runs": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Before Runs"
+          },
+          "after_runs": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "After Runs"
           }
         },
         "additionalProperties": false,

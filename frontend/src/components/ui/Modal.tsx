@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useId, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
 import { cn } from "../../lib/utils";
@@ -12,60 +12,82 @@ export interface ModalProps {
   className?: string;
 }
 
-export const Modal: React.FC<ModalProps> = ({
-  isOpen,
-  onClose,
-  title,
-  description,
-  children,
-  className,
-}) => {
-  // ESC key to close
+const FOCUSABLE = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
+
+/** Accessible dialog: labelled, Escape closes, focus moves in on open, is trapped, and is restored on close. */
+export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, description, children, className }) => {
+  const titleId = useId();
+  const descId = useId();
+  const panel = useRef<HTMLDivElement>(null);
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
+
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && isOpen) {
-        onClose();
+    if (!isOpen) return;
+    const opener = document.activeElement as HTMLElement | null;
+    const items = () =>
+      Array.from(panel.current?.querySelectorAll<HTMLElement>(FOCUSABLE) ?? []).filter((el) => !el.hasAttribute("disabled"));
+    requestAnimationFrame(() => items()[0]?.focus());
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") closeRef.current();
+      if (e.key !== "Tab") return;
+      const list = items();
+      if (!list.length) return;
+      const first = list[0];
+      const last = list[list.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
       }
     };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, onClose]);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      opener?.focus();
+    };
+  }, [isOpen]);
 
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
-          {/* Backdrop */}
+        <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-4 overflow-y-auto">
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
             onClick={onClose}
-            className="fixed inset-0 bg-slate-950/80 backdrop-blur-md"
+            className="fixed inset-0 bg-scrim/50"
+            aria-hidden
           />
-
-          {/* Dialog Container */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 10 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 10 }}
-            transition={{ type: "spring", stiffness: 300, damping: 25 }}
-            className={cn(
-              "relative w-full max-w-lg rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-2xl shadow-black/80 z-10",
-              className
-            )}
+            ref={panel}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={titleId}
+            aria-describedby={description ? descId : undefined}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 8 }}
+            transition={{ duration: 0.2, ease: [0.2, 0, 0, 1] }}
+            className={cn("relative z-10 w-full max-w-lg rounded-lg border border-line bg-surface-raised p-5 shadow-raised", className)}
           >
-            <div className="flex items-center justify-between pb-4 border-b border-slate-800">
+            <div className="flex items-start justify-between gap-4 pb-3 border-b border-line">
               <div>
-                <h3 className="text-lg font-semibold text-white">{title}</h3>
-                {description && <p className="text-xs text-slate-400 mt-1">{description}</p>}
+                <h2 id={titleId} className="text-base font-semibold text-ink">
+                  {title}
+                </h2>
+                {description && (
+                  <p id={descId} className="text-xs text-ink-2 mt-1">
+                    {description}
+                  </p>
+                )}
               </div>
-              <button
-                onClick={onClose}
-                className="rounded-lg p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
-                aria-label="Close dialog"
-              >
-                <X className="w-5 h-5" />
+              <button onClick={onClose} className="rounded-md p-1 text-ink-2 hover:text-ink hover:bg-surface-muted" aria-label="Close dialog">
+                <X className="w-4 h-4" />
               </button>
             </div>
             <div className="mt-4">{children}</div>

@@ -47,6 +47,15 @@ class FixEvalDetails(BaseModel):
     blocked_cases: list[str] = Field(default_factory=list)
     still_exploitable: list[str] = Field(default_factory=list)
     broken_tasks: list[str] = Field(default_factory=list)
+    # Runs that errored under the fixed policy: never counted as blocked or broken.
+    inconclusive: list[str] = Field(default_factory=list)
+    # AS-05 end-to-end outcome under the fixed policy (plant_failed | trigger_blocked | triggered).
+    sleeper_outcome: str | None = None
+    # Evidence: every run executed under the fixed policy for this evaluation.
+    run_ids: list[str] = Field(default_factory=list)
+    # Before/after evidence per attack case and benign task (AS-05: the sleeper trigger session).
+    before_runs: dict[str, str] = Field(default_factory=dict)
+    after_runs: dict[str, str] = Field(default_factory=dict)
     model_config = {"extra": "forbid"}
 
 

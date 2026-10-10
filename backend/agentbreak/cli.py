@@ -313,6 +313,57 @@ def main() -> None:
         help="Policy ID (default: pol_full)",
     )
 
+    discover_parser = subparsers.add_parser("discover", help="Run autonomous discovery campaign")
+    discover_parser.add_argument(
+        "--target",
+        type=str,
+        default="tgt_demo_scripted",
+        help="Target ID or alias (default: tgt_demo_scripted)",
+    )
+    discover_parser.add_argument(
+        "--policy",
+        type=str,
+        default="pol_full",
+        help="Policy ID (default: pol_full)",
+    )
+    discover_parser.add_argument(
+        "--seed",
+        type=int,
+        default=42,
+        help="Random seed for deterministic exploration (default: 42)",
+    )
+    discover_parser.add_argument(
+        "--max-attempts",
+        type=int,
+        default=30,
+        help="Maximum attempts budget (default: 30)",
+    )
+
+    subparsers.add_parser("demo", help="Run the end-to-end demo on the simulated target")
+
+    verify_parser = subparsers.add_parser(
+        "verify", help="Recompute a run's verdict from stored snapshots (exit 0 match, 1 mismatch)"
+    )
+    verify_parser.add_argument("run_id")
+
+    ci_parser = subparsers.add_parser(
+        "ci",
+        help="Security gate: measure a policy, write JSON; exit 0 pass, 1 gate failed, 2 infra error",
+    )
+    ci_parser.add_argument("--target", default="tgt_demo_scripted")
+    ci_parser.add_argument(
+        "--policy", default=None, help="Policy id (default: target's active policy)"
+    )
+    ci_parser.add_argument(
+        "--policy-file",
+        type=Path,
+        default=None,
+        help="JSON list of grants to test (policy-as-code); overrides --policy",
+    )
+    ci_parser.add_argument("--max-exploited", type=int, default=0)
+    ci_parser.add_argument("--min-benign-pass", type=float, default=1.0, help="Fraction 0..1")
+    ci_parser.add_argument("--out", type=Path, default=Path("agentbreak-ci.json"))
+
     args = parser.parse_args()
 
     if args.command == "export-openapi":
@@ -325,6 +376,64 @@ def main() -> None:
         run_cmd(target_name=args.target, case_id=args.case, policy_name=args.policy)
     elif args.command == "sleeper":
         sleeper_cmd(target_name=args.target, case_id=args.case, policy_name=args.policy)
+    elif args.command == "discover":
+        from agentbreak.engine.discovery import execute_discovery_campaign
+        from agentbreak.schemas.discovery import DiscoveryBudget, DiscoveryCreate
+
+        camp = execute_discovery_campaign(
+            DiscoveryCreate(
+                target_id=args.target,
+                policy_id=args.policy,
+                seed=args.seed,
+                budget=DiscoveryBudget(max_attempts=args.max_attempts),
+            )
+        )
+        print(
+            f"Discovery campaign {camp.id} completed: {camp.attempts} attempts, {camp.successes} successes."
+        )
+        print(f"Coverage: {camp.coverage}")
+    elif args.command == "demo":
+        from agentbreak.engine.demo import run_full_demo
+
+        print("Starting 1-minute full demo run...")
+        demo_status = run_full_demo()
+        print(f"Demo completed with status: {demo_status.status}")
+        for stg in demo_status.stages:
+            print(f" - [{stg.status.upper():9}] {stg.name}: {stg.detail or ''}")
+        print(f"Links: {demo_status.links}")
+        if demo_status.status != "completed":
+            print(f"Demo failed: {demo_status.error}", file=sys.stderr)
+            sys.exit(1)
+    elif args.command == "verify":
+        from agentbreak.db import get_connection
+        from agentbreak.engine.verify import reverify_run
+
+        conn = get_connection()
+        try:
+            v = reverify_run(args.run_id, conn)
+        except ValueError as exc:
+            print(f"cannot verify: {exc}", file=sys.stderr)
+            sys.exit(2)
+        finally:
+            conn.close()
+        print(
+            f"{args.run_id}: classification={v.classification} success={v.success} "
+            f"hash={v.verdict_hash} matches_stored={v.matches_stored}"
+        )
+        sys.exit(0 if v.matches_stored else 1)
+    elif args.command == "ci":
+        from agentbreak.engine.ci import run_ci_gate
+
+        sys.exit(
+            run_ci_gate(
+                target_id=args.target,
+                policy_id=args.policy,
+                policy_file=args.policy_file,
+                max_exploited=args.max_exploited,
+                min_benign_pass=args.min_benign_pass,
+                out=args.out,
+            )
+        )
     else:
         parser.print_help()
         sys.exit(1)

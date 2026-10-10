@@ -15,6 +15,8 @@ class RunRepo:
 
     def __init__(self, conn: sqlite3.Connection) -> None:
         self.conn = conn
+        if self.conn.row_factory is None:
+            self.conn.row_factory = sqlite3.Row
 
     def create(self, run: Run) -> Run:
         """Insert a new evaluation run record."""
@@ -83,6 +85,7 @@ class RunRepo:
         kind: str | None = None,
         status: str | None = None,
         scenario_id: str | None = None,
+        case_id: str | None = None,
         ids: list[str] | None = None,
         limit: int = 50,
         offset: int = 0,
@@ -106,6 +109,9 @@ class RunRepo:
         if scenario_id:
             clauses.append("r.scenario_id = ?")
             params.append(scenario_id)
+        if case_id:
+            clauses.append("r.case_id = ?")
+            params.append(case_id)
         if ids:
             placeholders = ",".join("?" for _ in ids)
             clauses.append(f"r.id IN ({placeholders})")
@@ -161,6 +167,7 @@ class RunRepo:
         kind: str | None = None,
         status: str | None = None,
         scenario_id: str | None = None,
+        case_id: str | None = None,
         ids: list[str] | None = None,
     ) -> int:
         """Count total runs matching filter criteria."""
@@ -182,6 +189,9 @@ class RunRepo:
         if scenario_id:
             clauses.append("r.scenario_id = ?")
             params.append(scenario_id)
+        if case_id:
+            clauses.append("r.case_id = ?")
+            params.append(case_id)
         if ids:
             placeholders = ",".join("?" for _ in ids)
             clauses.append(f"r.id IN ({placeholders})")

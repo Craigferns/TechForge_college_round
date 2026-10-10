@@ -1,0 +1,789 @@
+[
+  {
+    "id": "pol_full",
+    "name": "Full Access Policy (All Tools)",
+    "parent_id": null,
+    "grants": [
+      {
+        "tool": "list_inbox",
+        "constraints": []
+      },
+      {
+        "tool": "read_email",
+        "constraints": []
+      },
+      {
+        "tool": "send_email",
+        "constraints": []
+      },
+      {
+        "tool": "list_files",
+        "constraints": []
+      },
+      {
+        "tool": "read_file",
+        "constraints": []
+      },
+      {
+        "tool": "share_file",
+        "constraints": []
+      },
+      {
+        "tool": "delete_file",
+        "constraints": []
+      },
+      {
+        "tool": "write_memory",
+        "constraints": []
+      },
+      {
+        "tool": "read_memory",
+        "constraints": []
+      },
+      {
+        "tool": "set_role",
+        "constraints": []
+      }
+    ],
+    "hash": "sha256:79a6fe2503d4283e2b273a90d1ccc8b8dca874c7b5b4eb9e3193b234f27864bc",
+    "created_at": "2026-10-10T22:12:29.224345+00:00"
+  },
+  {
+    "id": "pol_needed",
+    "name": "Least Privilege Policy (8 Needed Tools)",
+    "parent_id": null,
+    "grants": [
+      {
+        "tool": "list_files",
+        "constraints": []
+      },
+      {
+        "tool": "list_inbox",
+        "constraints": []
+      },
+      {
+        "tool": "read_email",
+        "constraints": []
+      },
+      {
+        "tool": "read_file",
+        "constraints": []
+      },
+      {
+        "tool": "read_memory",
+        "constraints": []
+      },
+      {
+        "tool": "send_email",
+        "constraints": []
+      },
+      {
+        "tool": "share_file",
+        "constraints": []
+      },
+      {
+        "tool": "write_memory",
+        "constraints": []
+      }
+    ],
+    "hash": "sha256:0880c2f8246284e16efd4817037007be8a26cbc1cba19e10cdc217937ccb98e8",
+    "created_at": "2026-10-10T22:12:29.224345+00:00"
+  },
+  {
+    "id": "pol_2086d091",
+    "name": "Full Access Policy (All Tools) without delete_file",
+    "parent_id": "pol_full",
+    "grants": [
+      {
+        "tool": "list_inbox",
+        "constraints": []
+      },
+      {
+        "tool": "read_email",
+        "constraints": []
+      },
+      {
+        "tool": "send_email",
+        "constraints": []
+      },
+      {
+        "tool": "list_files",
+        "constraints": []
+      },
+      {
+        "tool": "read_file",
+        "constraints": []
+      },
+      {
+        "tool": "share_file",
+        "constraints": []
+      },
+      {
+        "tool": "write_memory",
+        "constraints": []
+      },
+      {
+        "tool": "read_memory",
+        "constraints": []
+      },
+      {
+        "tool": "set_role",
+        "constraints": []
+      }
+    ],
+    "hash": "sha256:fc7e66f5fa397f006e971b8430b19cfaa370e2e13c5f27e06e2a4c659f5e7c83",
+    "created_at": "2026-10-10T22:12:29.825727+00:00"
+  },
+  {
+    "id": "pol_50835759",
+    "name": "Full Access Policy (All Tools) without list_files",
+    "parent_id": "pol_full",
+    "grants": [
+      {
+        "tool": "list_inbox",
+        "constraints": []
+      },
+      {
+        "tool": "read_email",
+        "constraints": []
+      },
+      {
+        "tool": "send_email",
+        "constraints": []
+      },
+      {
+        "tool": "read_file",
+        "constraints": []
+      },
+      {
+        "tool": "share_file",
+        "constraints": []
+      },
+      {
+        "tool": "delete_file",
+        "constraints": []
+      },
+      {
+        "tool": "write_memory",
+        "constraints": []
+      },
+      {
+        "tool": "read_memory",
+        "constraints": []
+      },
+      {
+        "tool": "set_role",
+        "constraints": []
+      }
+    ],
+    "hash": "sha256:5685125f2dd61c94d0d44d54c7c72b157b64fd325cb627523b23101feda8fc29",
+    "created_at": "2026-10-10T22:12:30.012082+00:00"
+  },
+  {
+    "id": "pol_602eeca6",
+    "name": "Full Access Policy (All Tools) without list_inbox",
+    "parent_id": "pol_full",
+    "grants": [
+      {
+        "tool": "read_email",
+        "constraints": []
+      },
+      {
+        "tool": "send_email",
+        "constraints": []
+      },
+      {
+        "tool": "list_files",
+        "constraints": []
+      },
+      {
+        "tool": "read_file",
+        "constraints": []
+      },
+      {
+        "tool": "share_file",
+        "constraints": []
+      },
+      {
+        "tool": "delete_file",
+        "constraints": []
+      },
+      {
+        "tool": "write_memory",
+        "constraints": []
+      },
+      {
+        "tool": "read_memory",
+        "constraints": []
+      },
+      {
+        "tool": "set_role",
+        "constraints": []
+      }
+    ],
+    "hash": "sha256:bc787f6e506b7a0e32a7d7602309654587277545642a69c3476fca923c8642c4",
+    "created_at": "2026-10-10T22:12:30.203938+00:00"
+  },
+  {
+    "id": "pol_2388e705",
+    "name": "Full Access Policy (All Tools) without read_email",
+    "parent_id": "pol_full",
+    "grants": [
+      {
+        "tool": "list_inbox",
+        "constraints": []
+      },
+      {
+        "tool": "send_email",
+        "constraints": []
+      },
+      {
+        "tool": "list_files",
+        "constraints": []
+      },
+      {
+        "tool": "read_file",
+        "constraints": []
+      },
+      {
+        "tool": "share_file",
+        "constraints": []
+      },
+      {
+        "tool": "delete_file",
+        "constraints": []
+      },
+      {
+        "tool": "write_memory",
+        "constraints": []
+      },
+      {
+        "tool": "read_memory",
+        "constraints": []
+      },
+      {
+        "tool": "set_role",
+        "constraints": []
+      }
+    ],
+    "hash": "sha256:bbef7f076ec1ef49aba6dda9a94e5e0ff4105aa307844b976aa7dfa1b16415f0",
+    "created_at": "2026-10-10T22:12:30.344689+00:00"
+  },
+  {
+    "id": "pol_1c9ceacc",
+    "name": "Full Access Policy (All Tools) without read_file",
+    "parent_id": "pol_full",
+    "grants": [
+      {
+        "tool": "list_inbox",
+        "constraints": []
+      },
+      {
+        "tool": "read_email",
+        "constraints": []
+      },
+      {
+        "tool": "send_email",
+        "constraints": []
+      },
+      {
+        "tool": "list_files",
+        "constraints": []
+      },
+      {
+        "tool": "share_file",
+        "constraints": []
+      },
+      {
+        "tool": "delete_file",
+        "constraints": []
+      },
+      {
+        "tool": "write_memory",
+        "constraints": []
+      },
+      {
+        "tool": "read_memory",
+        "constraints": []
+      },
+      {
+        "tool": "set_role",
+        "constraints": []
+      }
+    ],
+    "hash": "sha256:9f36f06570643886aea784c2952d1a655bbfcf96b6f0a370a3ddc120594d6821",
+    "created_at": "2026-10-10T22:12:30.500103+00:00"
+  },
+  {
+    "id": "pol_81ecd50e",
+    "name": "Full Access Policy (All Tools) without read_memory",
+    "parent_id": "pol_full",
+    "grants": [
+      {
+        "tool": "list_inbox",
+        "constraints": []
+      },
+      {
+        "tool": "read_email",
+        "constraints": []
+      },
+      {
+        "tool": "send_email",
+        "constraints": []
+      },
+      {
+        "tool": "list_files",
+        "constraints": []
+      },
+      {
+        "tool": "read_file",
+        "constraints": []
+      },
+      {
+        "tool": "share_file",
+        "constraints": []
+      },
+      {
+        "tool": "delete_file",
+        "constraints": []
+      },
+      {
+        "tool": "write_memory",
+        "constraints": []
+      },
+      {
+        "tool": "set_role",
+        "constraints": []
+      }
+    ],
+    "hash": "sha256:2eb6abf78928d450a44888bb17a79db61b552e979d2141ab6a6e14e6e8644275",
+    "created_at": "2026-10-10T22:12:30.677986+00:00"
+  },
+  {
+    "id": "pol_2d0fe4d0",
+    "name": "Full Access Policy (All Tools) without send_email",
+    "parent_id": "pol_full",
+    "grants": [
+      {
+        "tool": "list_inbox",
+        "constraints": []
+      },
+      {
+        "tool": "read_email",
+        "constraints": []
+      },
+      {
+        "tool": "list_files",
+        "constraints": []
+      },
+      {
+        "tool": "read_file",
+        "constraints": []
+      },
+      {
+        "tool": "share_file",
+        "constraints": []
+      },
+      {
+        "tool": "delete_file",
+        "constraints": []
+      },
+      {
+        "tool": "write_memory",
+        "constraints": []
+      },
+      {
+        "tool": "read_memory",
+        "constraints": []
+      },
+      {
+        "tool": "set_role",
+        "constraints": []
+      }
+    ],
+    "hash": "sha256:7792c03abea7a9e0c6fdb928177d49a1fcc1490e4cca77fd08c8d5d28eeafe74",
+    "created_at": "2026-10-10T22:12:30.861357+00:00"
+  },
+  {
+    "id": "pol_0ac5e2f1",
+    "name": "Full Access Policy (All Tools) without set_role",
+    "parent_id": "pol_full",
+    "grants": [
+      {
+        "tool": "list_inbox",
+        "constraints": []
+      },
+      {
+        "tool": "read_email",
+        "constraints": []
+      },
+      {
+        "tool": "send_email",
+        "constraints": []
+      },
+      {
+        "tool": "list_files",
+        "constraints": []
+      },
+      {
+        "tool": "read_file",
+        "constraints": []
+      },
+      {
+        "tool": "share_file",
+        "constraints": []
+      },
+      {
+        "tool": "delete_file",
+        "constraints": []
+      },
+      {
+        "tool": "write_memory",
+        "constraints": []
+      },
+      {
+        "tool": "read_memory",
+        "constraints": []
+      }
+    ],
+    "hash": "sha256:540d04ab11a53dc067f7410d82fb1c1ecb36e015b90ca17ddf6c00cd7d5f6417",
+    "created_at": "2026-10-10T22:12:31.020292+00:00"
+  },
+  {
+    "id": "pol_1d63e732",
+    "name": "Full Access Policy (All Tools) without share_file",
+    "parent_id": "pol_full",
+    "grants": [
+      {
+        "tool": "list_inbox",
+        "constraints": []
+      },
+      {
+        "tool": "read_email",
+        "constraints": []
+      },
+      {
+        "tool": "send_email",
+        "constraints": []
+      },
+      {
+        "tool": "list_files",
+        "constraints": []
+      },
+      {
+        "tool": "read_file",
+        "constraints": []
+      },
+      {
+        "tool": "delete_file",
+        "constraints": []
+      },
+      {
+        "tool": "write_memory",
+        "constraints": []
+      },
+      {
+        "tool": "read_memory",
+        "constraints": []
+      },
+      {
+        "tool": "set_role",
+        "constraints": []
+      }
+    ],
+    "hash": "sha256:2f334403838f2b1b7a558495eff59d113f704c9fae9442383fdd5d01915d39d3",
+    "created_at": "2026-10-10T22:12:31.205357+00:00"
+  },
+  {
+    "id": "pol_14a5816c",
+    "name": "Full Access Policy (All Tools) without write_memory",
+    "parent_id": "pol_full",
+    "grants": [
+      {
+        "tool": "list_inbox",
+        "constraints": []
+      },
+      {
+        "tool": "read_email",
+        "constraints": []
+      },
+      {
+        "tool": "send_email",
+        "constraints": []
+      },
+      {
+        "tool": "list_files",
+        "constraints": []
+      },
+      {
+        "tool": "read_file",
+        "constraints": []
+      },
+      {
+        "tool": "share_file",
+        "constraints": []
+      },
+      {
+        "tool": "delete_file",
+        "constraints": []
+      },
+      {
+        "tool": "read_memory",
+        "constraints": []
+      },
+      {
+        "tool": "set_role",
+        "constraints": []
+      }
+    ],
+    "hash": "sha256:c91ba24fc9b07a2d3e4e97d3afd3b146ed0fbd22e4314d1d8dfa15d240b459a5",
+    "created_at": "2026-10-10T22:12:31.390689+00:00"
+  },
+  {
+    "id": "pol_4812a9df",
+    "name": "Full Access Policy (All Tools) + restrict_arg:send_email",
+    "parent_id": "pol_full",
+    "grants": [
+      {
+        "tool": "list_inbox",
+        "constraints": []
+      },
+      {
+        "tool": "read_email",
+        "constraints": []
+      },
+      {
+        "tool": "send_email",
+        "constraints": [
+          {
+            "arg": "bcc",
+            "kind": "domain_allowlist",
+            "values": [
+              "acme.test",
+              "partnerco.test"
+            ]
+          },
+          {
+            "arg": "to",
+            "kind": "domain_allowlist",
+            "values": [
+              "acme.test",
+              "partnerco.test"
+            ]
+          }
+        ]
+      },
+      {
+        "tool": "list_files",
+        "constraints": []
+      },
+      {
+        "tool": "read_file",
+        "constraints": []
+      },
+      {
+        "tool": "share_file",
+        "constraints": []
+      },
+      {
+        "tool": "delete_file",
+        "constraints": []
+      },
+      {
+        "tool": "write_memory",
+        "constraints": []
+      },
+      {
+        "tool": "read_memory",
+        "constraints": []
+      },
+      {
+        "tool": "set_role",
+        "constraints": []
+      }
+    ],
+    "hash": "sha256:52ce161f25a7e0c765b83315a4fc7be17e728766317c4d6cc9cbdaf02ec6be1a",
+    "created_at": "2026-10-10T22:12:35.171253+00:00"
+  },
+  {
+    "id": "pol_5319112b",
+    "name": "Full Access Policy (All Tools) + restrict_arg:share_file",
+    "parent_id": "pol_full",
+    "grants": [
+      {
+        "tool": "list_inbox",
+        "constraints": []
+      },
+      {
+        "tool": "read_email",
+        "constraints": []
+      },
+      {
+        "tool": "send_email",
+        "constraints": []
+      },
+      {
+        "tool": "list_files",
+        "constraints": []
+      },
+      {
+        "tool": "read_file",
+        "constraints": []
+      },
+      {
+        "tool": "share_file",
+        "constraints": [
+          {
+            "arg": "principal",
+            "kind": "domain_allowlist",
+            "values": [
+              "acme.test"
+            ]
+          }
+        ]
+      },
+      {
+        "tool": "delete_file",
+        "constraints": []
+      },
+      {
+        "tool": "write_memory",
+        "constraints": []
+      },
+      {
+        "tool": "read_memory",
+        "constraints": []
+      },
+      {
+        "tool": "set_role",
+        "constraints": []
+      }
+    ],
+    "hash": "sha256:1d13173b49c9c2a68395b782b3eaae2a9e3937cac4fc00b423fe6d8a92c57ebe",
+    "created_at": "2026-10-10T22:12:35.546123+00:00"
+  },
+  {
+    "id": "pol_0de55014",
+    "name": "Least Privilege Policy (8 Needed Tools) + restrict_arg:send_email",
+    "parent_id": "pol_needed",
+    "grants": [
+      {
+        "tool": "list_files",
+        "constraints": []
+      },
+      {
+        "tool": "list_inbox",
+        "constraints": []
+      },
+      {
+        "tool": "read_email",
+        "constraints": []
+      },
+      {
+        "tool": "read_file",
+        "constraints": []
+      },
+      {
+        "tool": "read_memory",
+        "constraints": []
+      },
+      {
+        "tool": "send_email",
+        "constraints": [
+          {
+            "arg": "bcc",
+            "kind": "domain_allowlist",
+            "values": [
+              "acme.test",
+              "partnerco.test"
+            ]
+          },
+          {
+            "arg": "to",
+            "kind": "domain_allowlist",
+            "values": [
+              "acme.test",
+              "partnerco.test"
+            ]
+          }
+        ]
+      },
+      {
+        "tool": "share_file",
+        "constraints": []
+      },
+      {
+        "tool": "write_memory",
+        "constraints": []
+      }
+    ],
+    "hash": "sha256:c9a6ead7409cb37c08555e24a47cd35a17a7c65c04ea5600782ddf9742e03677",
+    "created_at": "2026-10-10T22:12:36.641321+00:00"
+  },
+  {
+    "id": "pol_35d80360",
+    "name": "Least Privilege Policy (8 Needed Tools) + restrict_arg:send_email + restrict_arg:share_file",
+    "parent_id": "pol_0de55014",
+    "grants": [
+      {
+        "tool": "list_files",
+        "constraints": []
+      },
+      {
+        "tool": "list_inbox",
+        "constraints": []
+      },
+      {
+        "tool": "read_email",
+        "constraints": []
+      },
+      {
+        "tool": "read_file",
+        "constraints": []
+      },
+      {
+        "tool": "read_memory",
+        "constraints": []
+      },
+      {
+        "tool": "send_email",
+        "constraints": [
+          {
+            "arg": "bcc",
+            "kind": "domain_allowlist",
+            "values": [
+              "acme.test",
+              "partnerco.test"
+            ]
+          },
+          {
+            "arg": "to",
+            "kind": "domain_allowlist",
+            "values": [
+              "acme.test",
+              "partnerco.test"
+            ]
+          }
+        ]
+      },
+      {
+        "tool": "share_file",
+        "constraints": [
+          {
+            "arg": "principal",
+            "kind": "domain_allowlist",
+            "values": [
+              "acme.test"
+            ]
+          }
+        ]
+      },
+      {
+        "tool": "write_memory",
+        "constraints": []
+      }
+    ],
+    "hash": "sha256:284361f9adb0d657daebbb216a3aa21d49f6d236ff2b52acef36ee0565d7a0cb",
+    "created_at": "2026-10-10T22:12:36.994733+00:00"
+  }
+]

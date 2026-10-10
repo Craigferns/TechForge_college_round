@@ -371,7 +371,7 @@ export interface paths {
         put?: never;
         /**
          * Verify Run
-         * @description Deterministically re-verify environment state diff predicates and canary tokens.
+         * @description Recompute the verdict from stored PRE/POST snapshots and compare it to the stored hash.
          */
         post: operations["verify_run_api_v1_runs__run_id__verify_post"];
         delete?: never;
@@ -625,7 +625,7 @@ export interface paths {
         };
         /**
          * List Fix Suggestions
-         * @description List candidate policy fixes suggested by the audit findings.
+         * @description List candidate policy fixes suggested deterministically by the audit findings.
          */
         get: operations["list_fix_suggestions_api_v1_audits__audit_id__fixes_get"];
         put?: never;
@@ -749,7 +749,7 @@ export interface paths {
         };
         /**
          * Get Dashboard Summary
-         * @description Return high-level security metrics, severity breakdown, and recent runs.
+         * @description Current posture under the target's active policy (see DashboardSummary docstring).
          */
         get: operations["get_dashboard_summary_api_v1_dashboard_summary_get"];
         put?: never;
@@ -835,7 +835,7 @@ export interface paths {
         put?: never;
         /**
          * Run Demo
-         * @description Launch the 1-minute live demo scan across attack scenarios.
+         * @description Start the demo in the background; poll GET /demo/{id} for real stage progress.
          */
         post: operations["run_demo_api_v1_demo_run_post"];
         delete?: never;
@@ -928,8 +928,22 @@ export interface components {
             /** Benign Broken */
             benign_broken: number;
         };
-        /** DashboardSummary */
+        /**
+         * DashboardSummary
+         * @description Current posture of one target: the latest completed result per attack case and
+         *     benign task under the target's ACTIVE policy (AS-05 from its latest sleeper chain).
+         *     Runs under other policies (baselines, counterfactuals, fix measurements) are excluded.
+         */
         DashboardSummary: {
+            /** Active Policy Id */
+            active_policy_id?: string | null;
+            /** Sleeper Outcome */
+            sleeper_outcome?: string | null;
+            /**
+             * Inconclusive
+             * @default 0
+             */
+            inconclusive: number;
             /** Attack Success Rate */
             attack_success_rate: number;
             /** Benign Pass Rate */
@@ -1251,6 +1265,20 @@ export interface components {
             still_exploitable?: string[];
             /** Broken Tasks */
             broken_tasks?: string[];
+            /** Inconclusive */
+            inconclusive?: string[];
+            /** Sleeper Outcome */
+            sleeper_outcome?: string | null;
+            /** Run Ids */
+            run_ids?: string[];
+            /** Before Runs */
+            before_runs?: {
+                [key: string]: string;
+            };
+            /** After Runs */
+            after_runs?: {
+                [key: string]: string;
+            };
         };
         /** FixSpec */
         FixSpec: {
@@ -2346,6 +2374,7 @@ export interface operations {
                 kind?: string | null;
                 status?: string | null;
                 scenario_id?: string | null;
+                case_id?: string | null;
                 ids?: string | null;
                 limit?: number;
                 offset?: number;

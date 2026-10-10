@@ -101,10 +101,15 @@ class ScriptedAgent(BasePipelineElement):
             ground_truth_output = matched_task.GROUND_TRUTH_OUTPUT
 
         injected_intention: str | None = None
+        # Identity of the task's own calls: a denied own call means the agent never got
+        # the data it needed, so it must not return the canned ground-truth answer.
+        own_call_ids = {id(c) for c in calls_queue}
+        failed_tool: str | None = None
 
         # 3. Execution loop
         while calls_queue:
             call = calls_queue.pop(0)
+            is_own_call = id(call) in own_call_ids
 
             # 4. Memory trigger: standing instruction poisoning
             if memory_trigger_active and call.function == "send_email":
@@ -126,6 +131,9 @@ class ScriptedAgent(BasePipelineElement):
 
             # Execute tool call via runtime
             res, err = runtime.run_function(env, call.function, call.args)
+            if err and is_own_call and failed_tool is None:
+                failed_tool = call.function
+                calls_queue = [c for c in calls_queue if id(c) not in own_call_ids]
 
             # Record tool result or denial
             res_str = json.dumps(res) if isinstance(res, (dict, list)) else str(res)
@@ -162,6 +170,8 @@ class ScriptedAgent(BasePipelineElement):
         # 5. Finish: build final answer
         if self.profile.says_only and injected_intention:
             final_text = injected_intention
+        elif failed_tool is not None:
+            final_text = f"I could not complete the task: the {failed_tool} tool was unavailable."
         else:
             final_text = ground_truth_output
 

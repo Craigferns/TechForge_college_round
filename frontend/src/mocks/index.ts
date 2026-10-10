@@ -1,78 +1,81 @@
 /**
- * Mock data resolver for frontend mock mode (VITE_API_MODE=mock).
+ * Mock mode (VITE_API_MODE=mock): fixtures RECORDED from the real API after a real demo run
+ * (scripts/gen_mocks.py; validated by scripts/check_mocks.py). Any id maps to its collection's
+ * fixture, so links between pages keep working. The UI labels mock mode as "not live results".
  */
 
+import attackCases from "./attack_cases.json";
 import auditDemo from "./audit_demo.json";
+import auditsPage from "./audits_page.json";
 import dashboardSummary from "./dashboard_summary.json";
 import demoStatus from "./demo_status.json";
+import findingAs04 from "./finding_as04.json";
+import findingsPage from "./findings_page.json";
 import fixEvalsPage from "./fix_evals_page.json";
+import fixEvalDelete from "./fix_eval_remove_delete_file.json";
+import fixSuggestions from "./fix_suggestions.json";
+import graphAggregate from "./graph_aggregate.json";
 import graphAs04 from "./graph_as04.json";
+import health from "./health.json";
+import meta from "./meta.json";
+import policies from "./policies.json";
+import policyDiff from "./policy_diff.json";
 import reportDemo from "./report_demo.json";
 import runAs04 from "./run_as04.json";
+import runsPage from "./runs_page.json";
+import scenarios from "./scenarios.json";
 import sleeperRunAs05 from "./sleeper_run_as05.json";
+import sleeperRuns from "./sleeper_runs.json";
 import snapshotsAs04 from "./snapshots_as04.json";
+import suiteAcme from "./suite_acme.json";
+import targetTest from "./target_test.json";
 import targets from "./targets.json";
 import traceAs04 from "./trace_as04.json";
+import verifyAs04 from "./verify_as04.json";
 
-export const mockDb = {
-  "/api/v1/health": { status: "ok", version: "0.1.0", agentdojo_version: "0.1.35", db_ok: true },
-  "/api/v1/targets": targets,
-  "/api/v1/dashboard/summary": dashboardSummary,
-  "/api/v1/runs/run_demo_as04": runAs04,
-  "/api/v1/runs/run_demo_as04/trace": traceAs04,
-  "/api/v1/runs/run_demo_as04/snapshots": snapshotsAs04,
-  "/api/v1/runs/run_demo_as04/graph": graphAs04,
-  "/api/v1/audits/aud_1f3a9c02": auditDemo,
-  "/api/v1/audits": { items: [auditDemo], total: 1, limit: 50, offset: 0 },
-  "/api/v1/fix-evals": fixEvalsPage,
-  "/api/v1/sleeper-runs/slp_demo_as05": sleeperRunAs05,
-  "/api/v1/sleeper-runs": { items: [sleeperRunAs05], total: 1, limit: 50, offset: 0 },
-  "/api/v1/reports/rep_demo_7fa2": reportDemo,
-  "/api/v1/reports": { items: [reportDemo], total: 1, limit: 50, offset: 0 },
-  "/api/v1/demo/demo_live_run": demoStatus,
-};
+const ID = "[^/]+";
+// First match wins: more specific patterns come first.
+const routes: [RegExp, unknown][] = [
+  [/^\/health$/, health],
+  [/^\/meta$/, meta],
+  [new RegExp(`^/targets/${ID}/test$`), targetTest],
+  [new RegExp(`^/targets/${ID}$`), targets[0]],
+  [/^\/targets$/, targets],
+  [/^\/suites\/acme$/, suiteAcme],
+  [/^\/scenarios$/, scenarios],
+  [/^\/attack-cases$/, attackCases],
+  [new RegExp(`^/policies/${ID}/diff/${ID}$`), policyDiff],
+  [/^\/policies$/, policies],
+  [/^\/dashboard\/summary$/, dashboardSummary],
+  [new RegExp(`^/runs/${ID}/trace$`), traceAs04],
+  [new RegExp(`^/runs/${ID}/snapshots$`), snapshotsAs04],
+  [new RegExp(`^/runs/${ID}/graph$`), graphAs04],
+  [new RegExp(`^/runs/${ID}/verify$`), verifyAs04],
+  [new RegExp(`^/runs/${ID}$`), runAs04],
+  [/^\/runs$/, runsPage],
+  [new RegExp(`^/audits/${ID}/fixes/evaluate-all$`), { fix_eval_ids: fixEvalsPage.items.map((i) => i.id) }],
+  [new RegExp(`^/audits/${ID}/fixes$`), fixSuggestions],
+  [new RegExp(`^/audits/${ID}$`), auditDemo],
+  [/^\/audits$/, auditsPage],
+  [new RegExp(`^/fix-evals/${ID}/retest$`), fixEvalDelete],
+  [new RegExp(`^/fix-evals/${ID}/apply$`), policies[policies.length - 1]],
+  [new RegExp(`^/fix-evals/${ID}$`), fixEvalDelete],
+  [/^\/fix-evals$/, fixEvalsPage],
+  [new RegExp(`^/sleeper-runs/${ID}$`), sleeperRunAs05],
+  [/^\/sleeper-runs$/, sleeperRuns],
+  [new RegExp(`^/findings/${ID}$`), findingAs04],
+  [/^\/findings$/, findingsPage],
+  [/^\/graph$/, graphAggregate],
+  [new RegExp(`^/reports/${ID}$`), reportDemo],
+  [/^\/reports$/, { items: [reportDemo], total: 1, limit: 50, offset: 0 }],
+  [/^\/demo\/run$/, demoStatus],
+  [new RegExp(`^/demo/${ID}$`), demoStatus],
+];
 
 export async function resolveMockPath<T>(path: string): Promise<T> {
-  // Artificial 150ms delay per PLAN.md §17.1
-  await new Promise((resolve) => setTimeout(resolve, 150));
-
-  for (const [route, data] of Object.entries(mockDb)) {
-    if (path === route || path.startsWith(route)) {
-      return data as unknown as T;
-    }
-  }
-
-  // Fallbacks
-  if (path.includes("/demo/run")) {
-    return demoStatus as unknown as T;
-  }
-  if (path.includes("/verify")) {
-    return {
-      success: true,
-      classification: "exploited",
-      severity: "high",
-      matches_stored: true,
-      evidence: runAs04.verdict.evidence,
-      verifier_version: "1.0.0",
-      verdict_hash: runAs04.verdict.verdict_hash,
-      created_at: new Date().toISOString(),
-    } as unknown as T;
-  }
-  if (path.includes("/fixes/evaluate-all")) {
-    return { fix_eval_ids: fixEvalsPage.items.map((i) => i.id) } as unknown as T;
-  }
-  if (path.includes("/retest")) {
-    return fixEvalsPage.items[0] as unknown as T;
-  }
-  if (path.includes("/apply")) {
-    return {
-      id: "pol_child_applied",
-      name: "Hardened Policy",
-      grants: [],
-      hash: "sha256:applied...",
-      created_at: new Date().toISOString(),
-    } as unknown as T;
-  }
-
-  throw new Error(`Mock not found for path: ${path}`);
+  await new Promise((resolve) => setTimeout(resolve, 150)); // PLAN §17.1 artificial latency
+  const bare = path.split("?")[0].replace(/^\/api\/v1/, "");
+  const hit = routes.find(([re]) => re.test(bare));
+  if (!hit) throw new Error(`Mock not found for path: ${path}`);
+  return hit[1] as T;
 }

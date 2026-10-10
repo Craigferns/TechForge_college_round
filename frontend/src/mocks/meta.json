@@ -1,0 +1,28 @@
+{
+  "suites": [
+    "acme"
+  ],
+  "scenarios": [
+    "ipi-exfil",
+    "malicious-doc",
+    "sleeper-memory",
+    "priv-esc"
+  ],
+  "fix_kinds": [
+    "remove_permission",
+    "restrict_arg",
+    "defense",
+    "prompt_hardening"
+  ],
+  "defenses": [
+    "tool_filter",
+    "transformers_pi_detector",
+    "spotlighting_with_delimiting",
+    "repeat_user_prompt"
+  ],
+  "verifier_version": "1.0.0",
+  "limits": {
+    "max_attempts": 40,
+    "max_seconds": 300
+  }
+}
