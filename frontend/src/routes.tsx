@@ -7,6 +7,7 @@ import { PermissionDiffPage } from "./pages/PermissionDiff";
 import { FixLabPage } from "./pages/FixLab";
 import { SleeperPage } from "./pages/Sleeper";
 import { ReportPage } from "./pages/Report";
+import { VisualizerPage } from "./pages/Visualizer";
 import { PrivacyPage } from "./pages/Privacy";
 import { TermsPage } from "./pages/Terms";
 
@@ -14,6 +15,8 @@ export const AppRoutes: React.FC = () => (
   <Routes>
     <Route path="/" element={<DashboardPage />} />
     <Route path="/dashboard" element={<Navigate to="/" replace />} />
+    <Route path="/visualizer" element={<VisualizerPage />} />
+    <Route path="/visualizer/:caseId" element={<VisualizerPage />} />
     <Route path="/findings" element={<FindingsPage />} />
     <Route path="/findings/:findingId" element={<FindingsPage />} />
     <Route path="/runs" element={<RunDetailPage />} />

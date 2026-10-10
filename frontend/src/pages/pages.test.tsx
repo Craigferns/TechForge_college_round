@@ -104,4 +104,34 @@ describe("page smoke tests (mock fixtures)", () => {
     expect(html).not.toContain("<script");
     expect(click).toHaveBeenCalledTimes(2);
   });
+
+  it("threat visualizer renders pipeline, toggles defense shield, and switches scenarios", async () => {
+    at("/visualizer");
+    expect(await screen.findByRole("heading", { name: /Agent Threat & Defense Visualizer/ })).toBeInTheDocument();
+    expect(screen.getByText("1. Threat Carrier")).toBeInTheDocument();
+    expect(screen.getByText("2. Agent Core (LLM)")).toBeInTheDocument();
+    expect(screen.getByText("3. Policy Shield")).toBeInTheDocument();
+    expect(screen.getByText("4. Host Sandbox")).toBeInTheDocument();
+
+    // Toggle shield
+    const shieldBtn = screen.getByRole("button", { name: /Shield Active: Hardened Policy/ });
+    fireEvent.click(shieldBtn);
+    expect(screen.getByText("UNPROTECTED")).toBeInTheDocument();
+    expect(screen.getByText("UNPROTECTED: Raw Agent Exposed to Malicious Tool Calls")).toBeInTheDocument();
+
+    // Toggle back
+    fireEvent.click(screen.getByRole("button", { name: /Shield Off: Raw Agent/ }));
+    expect(screen.getByText("SHIELD ARMED")).toBeInTheDocument();
+
+    // Switch scenario to AS-01
+    const as01Btn = screen.getByRole("button", { name: /AS-01/ });
+    fireEvent.click(as01Btn);
+    expect(screen.getByText(/Indirect Prompt Injection -> Credential Exfiltration/)).toBeInTheDocument();
+
+    // Step timeline forward
+    const nextBtn = screen.getByRole("button", { name: "Next step" });
+    fireEvent.click(nextBtn);
+    expect(screen.getAllByText("2. Poisoned Email Ingested").length).toBeGreaterThan(0);
+  });
 });
+

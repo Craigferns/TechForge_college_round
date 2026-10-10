@@ -5,29 +5,35 @@
  */
 import React from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
 import { useApi } from "../api/client";
 import type { AttackCase, DashboardSummary, Finding, Page, ScenarioSpec } from "../api/models";
+import { ArrowRight, Eye } from "lucide-react";
 import { DemoRunner } from "../components/demo/DemoRunner";
 import { Badge } from "../components/ui/Badge";
+import { Button } from "../components/ui/Button";
 import { Card, CardTitle } from "../components/ui/Card";
 import { PageState } from "../components/ui/PageState";
 import { SeverityBadge } from "../components/ui/SeverityBadge";
 import { runOutcome, STATUS_LABEL } from "../lib/status";
 
-const Metric: React.FC<{ to: string; label: string; value: React.ReactNode; note: string; tone?: "vuln" | "ok" | "neutral" }> = ({
+const Metric: React.FC<{ to: string; label: string; value: React.ReactNode; note: string; tone?: "vuln" | "ok" | "neutral"; index?: number }> = ({
+  index = 0,
   to,
   label,
   value,
   note,
   tone = "neutral",
 }) => (
-  <Link to={to} className="group rounded-lg border border-line bg-surface p-4 hover:border-line-strong transition-colors duration-150">
+  <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25, delay: index * 0.05, ease: "easeOut" }}>
+  <Link to={to} className="group block h-full rounded-lg border border-line bg-surface p-4 hover:border-line-strong transition-colors duration-150">
     <p className="text-xs text-ink-2">{label}</p>
     <p className={`mt-1 text-2xl font-semibold font-mono tabular-nums ${tone === "vuln" ? "text-vuln" : tone === "ok" ? "text-term" : "text-ink"}`}>
       {value}
     </p>
     <p className="mt-1 text-[11px] leading-4 text-ink-3 group-hover:text-ink-2">{note}</p>
   </Link>
+  </motion.div>
 );
 
 const SEV_ORDER = ["critical", "high", "medium", "low"];
@@ -83,8 +89,32 @@ export const DashboardPage: React.FC = () => {
         </Card>
       )}
 
+      {/* Visualizer Hero Callout */}
+      <div className="rounded-lg border border-action/30 bg-action/5 p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="flex items-start gap-3">
+          <div className="p-2 rounded-md bg-action/10 text-action shrink-0 mt-0.5">
+            <Eye className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="text-sm font-semibold text-ink">Agent Attack & Defense Visualizer</h2>
+              <Badge variant="pareto">Interactive Simulator</Badge>
+            </div>
+            <p className="text-xs text-ink-2 mt-0.5 max-w-2xl leading-relaxed">
+              Step through simulated attacks against tool-calling agents. Watch indirect prompt injections attempt destructive actions, and see how AgentBreak's policy firewall intercepts them deterministically.
+            </p>
+          </div>
+        </div>
+        <Link to="/visualizer" className="shrink-0">
+          <Button variant="primary" size="sm" icon={<ArrowRight className="w-3.5 h-3.5" />}>
+            Open Visualizer
+          </Button>
+        </Link>
+      </div>
+
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <Metric
+          index={0}
           to="/runs"
           label="Attacks succeeding now"
           value={`${d.successful_attacks}/${d.total_attacks}`}
@@ -92,14 +122,15 @@ export const DashboardPage: React.FC = () => {
           tone={d.successful_attacks ? "vuln" : d.total_attacks ? "ok" : "neutral"}
         />
         <Metric
+          index={1}
           to="/runs"
           label="Benign tasks passing"
           value={`${d.passed_benign}/${d.total_benign}`}
           note={d.inconclusive ? `${d.inconclusive} inconclusive runs not counted` : "No inconclusive runs"}
           tone={d.total_benign && d.passed_benign === d.total_benign ? "ok" : "neutral"}
         />
-        <Metric to="/findings" label="Findings needing attention" value={d.open_findings} note="Open or regressed" tone={d.open_findings ? "vuln" : "neutral"} />
-        <Metric to="/permissions" label="Grants hardened" value={d.fixes_applied} note="Tools removed or constrained since the first tested policy" />
+        <Metric index={2} to="/findings" label="Findings needing attention" value={d.open_findings} note="Open or regressed" tone={d.open_findings ? "vuln" : "neutral"} />
+        <Metric index={3} to="/permissions" label="Grants hardened" value={d.fixes_applied} note="Tools removed or constrained since the first tested policy" />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
@@ -138,13 +169,15 @@ export const DashboardPage: React.FC = () => {
           <CardTitle>Recorded findings by severity</CardTitle>
           <p className="text-xs text-ink-3 mt-0.5 mb-3">All statuses, including fixed</p>
           <ul className="space-y-2">
-            {(["critical", "high", "medium", "low"] as const).map((k) => (
+            {(["critical", "high", "medium", "low"] as const).map((k, i) => (
               <li key={k} className="grid grid-cols-[64px_1fr_24px] items-center gap-2 text-xs">
                 <span className="text-ink-2 capitalize">{k}</span>
                 <span className="h-2 rounded-sm bg-surface-muted overflow-hidden" aria-hidden>
-                  <span
-                    className={`block h-full ${k === "critical" ? "bg-vuln" : k === "low" ? "bg-info" : "bg-warn"}`}
-                    style={{ width: `${((sev[k] ?? 0) / sevMax) * 100}%` }}
+                  <motion.span
+                    className={`block h-full w-full origin-left ${k === "critical" ? "bg-vuln" : k === "low" ? "bg-info" : "bg-warn"}`}
+                    initial={{ scaleX: 0 }}
+                    animate={{ scaleX: (sev[k] ?? 0) / sevMax }}
+                    transition={{ type: "spring", stiffness: 140, damping: 24, delay: 0.1 + i * 0.06 }}
                   />
                 </span>
                 <span className="font-mono tabular-nums text-right text-ink">{sev[k] ?? 0}</span>

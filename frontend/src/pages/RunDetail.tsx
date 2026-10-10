@@ -4,7 +4,7 @@
  */
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
-import { ShieldCheck } from "lucide-react";
+import { Eye, ShieldCheck } from "lucide-react";
 import { apiClient, useApi, useByIdOrLatest } from "../api/client";
 import type { AttackGraph, Run, SnapshotPair, TraceStep, Verdict } from "../api/models";
 import { AttackPath } from "../components/run/AttackPath";
@@ -155,6 +155,11 @@ export const RunDetailPage: React.FC = () => {
           </p>
         </div>
         <div className="flex items-center gap-3">
+          <Link to={`/visualizer${run.case_id ? `?case=${run.case_id}` : ""}`}>
+            <Button variant="secondary" size="sm" icon={<Eye className="w-3.5 h-3.5" />}>
+              Simulate in visualizer
+            </Button>
+          </Link>
           <Link to="/permissions" className="text-xs text-action hover:underline">
             Which permission enabled this
           </Link>

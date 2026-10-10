@@ -3,6 +3,7 @@ import { NavLink, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   Activity,
+  Eye,
   FileText,
   Hourglass,
   LayoutDashboard,
@@ -29,6 +30,7 @@ const NAV: { group: string; items: { to: string; label: string; icon: React.Reac
   {
     group: "Investigate",
     items: [
+      { to: "/visualizer", label: "Threat Visualizer", icon: <Eye className="w-4 h-4" /> },
       { to: "/findings", label: "Findings", icon: <ShieldAlert className="w-4 h-4" /> },
       { to: "/runs", label: "Runs", icon: <Terminal className="w-4 h-4" /> },
       { to: "/sleeper", label: "Sleeper testing", icon: <Hourglass className="w-4 h-4" /> },
