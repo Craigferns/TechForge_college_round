@@ -1,0 +1,18 @@
+[
+  {
+    "id": "demo-scripted",
+    "name": "Simulated Target (Scripted)",
+    "kind": "scripted",
+    "config": { "profile": "default", "description": "Deterministic test fixture" },
+    "active_policy_id": "pol_full",
+    "created_at": "2026-10-10T16:00:00Z"
+  },
+  {
+    "id": "ollama-local",
+    "name": "Local Ollama Target (Tool-Calling)",
+    "kind": "openai_compat",
+    "config": { "base_url": "http://localhost:11434/v1", "model": "qwen2.5:7b" },
+    "active_policy_id": "pol_full",
+    "created_at": "2026-10-10T16:00:00Z"
+  }
+]

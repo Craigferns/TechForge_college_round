@@ -1,0 +1,22 @@
+{
+  "id": "demo_live_run",
+  "status": "completed",
+  "stage": "Audit & Remediation complete",
+  "stages": [
+    { "id": "s1", "name": "Sandbox Environment Initialization", "status": "completed", "detail": "Acme environment loaded with 10 tools" },
+    { "id": "s2", "name": "Base Security Evaluation (7 Attacks)", "status": "completed", "detail": "7/7 exploits succeeded (5 Critical, 2 High)" },
+    { "id": "s3", "name": "Benign Ground Truth Baseline", "status": "completed", "detail": "10/10 legitimate tasks passed (100%)" },
+    { "id": "s4", "name": "Permission Diff & Attribution (D1)", "status": "completed", "detail": "Attributed to 2 excess permissions (delete_file, set_role)" },
+    { "id": "s5", "name": "Fix Price Tag Measurement (D2)", "status": "completed", "detail": "Combined hardening policy: 7/7 blocked, 0/10 broken" },
+    { "id": "s6", "name": "Cross-Session Sleeper Validation (D3)", "status": "completed", "detail": "Memory persistence attack verified" }
+  ],
+  "links": {
+    "dashboard": "/dashboard",
+    "run": "/runs/run_demo_as04",
+    "audit": "/permissions",
+    "fixlab": "/fixes",
+    "sleeper": "/sleeper",
+    "report": "/report"
+  },
+  "error": null
+}

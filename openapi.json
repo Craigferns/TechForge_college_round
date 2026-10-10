@@ -1,0 +1,5384 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "AgentBreak API",
+    "description": "Autonomous security-testing platform for tool-using AI agents",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/api/v1/health": {
+      "get": {
+        "tags": [
+          "system"
+        ],
+        "summary": "Health Check",
+        "description": "Return operational health status, versions, and database connectivity.",
+        "operationId": "health_check_api_v1_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Health"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/meta": {
+      "get": {
+        "tags": [
+          "system"
+        ],
+        "summary": "Get Meta",
+        "description": "Return platform metadata, supported test suites, scenarios, defenses, and limits.",
+        "operationId": "get_meta_api_v1_meta_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Meta"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/targets": {
+      "get": {
+        "tags": [
+          "targets"
+        ],
+        "summary": "List Targets",
+        "description": "List all registered agent targets (scripted and OpenAI-compatible).",
+        "operationId": "list_targets_api_v1_targets_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Target"
+                  },
+                  "type": "array",
+                  "title": "Response List Targets Api V1 Targets Get"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "targets"
+        ],
+        "summary": "Create Target",
+        "description": "Register a new agent target with endpoint configuration.",
+        "operationId": "create_target_api_v1_targets_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TargetCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Target"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/targets/{target_id}": {
+      "get": {
+        "tags": [
+          "targets"
+        ],
+        "summary": "Get Target",
+        "description": "Retrieve details and metadata for a specific agent target.",
+        "operationId": "get_target_api_v1_targets__target_id__get",
+        "parameters": [
+          {
+            "name": "target_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Target Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Target"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "targets"
+        ],
+        "summary": "Delete Target",
+        "description": "Delete a target configuration.",
+        "operationId": "delete_target_api_v1_targets__target_id__delete",
+        "parameters": [
+          {
+            "name": "target_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Target Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/targets/{target_id}/test": {
+      "post": {
+        "tags": [
+          "targets"
+        ],
+        "summary": "Test Target",
+        "description": "Test connectivity and tool-calling responsiveness for a target agent.",
+        "operationId": "test_target_api_v1_targets__target_id__test_post",
+        "parameters": [
+          {
+            "name": "target_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Target Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TargetTestResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/suites/acme": {
+      "get": {
+        "tags": [
+          "suites"
+        ],
+        "summary": "Get Suite Acme",
+        "description": "Retrieve specifications for the Acme Corporation benchmark suite (tools, tasks, vectors).",
+        "operationId": "get_suite_acme_api_v1_suites_acme_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuiteInfo"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scenarios": {
+      "get": {
+        "tags": [
+          "suites"
+        ],
+        "summary": "List Scenarios",
+        "description": "List all 4 core evaluation scenarios (ipi-exfil, malicious-doc, sleeper-memory, priv-esc).",
+        "operationId": "list_scenarios_api_v1_scenarios_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ScenarioSpec"
+                  },
+                  "type": "array",
+                  "title": "Response List Scenarios Api V1 Scenarios Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scenarios/{scenario_id}": {
+      "get": {
+        "tags": [
+          "suites"
+        ],
+        "summary": "Get Scenario",
+        "description": "Retrieve full configuration and attack cases for a scenario.",
+        "operationId": "get_scenario_api_v1_scenarios__scenario_id__get",
+        "parameters": [
+          {
+            "name": "scenario_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Scenario Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScenarioSpec"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/attack-cases": {
+      "get": {
+        "tags": [
+          "suites"
+        ],
+        "summary": "List Attack Cases",
+        "description": "List all registered attack test cases (AS-01 through AS-07).",
+        "operationId": "list_attack_cases_api_v1_attack_cases_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AttackCase"
+                  },
+                  "type": "array",
+                  "title": "Response List Attack Cases Api V1 Attack Cases Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/policies": {
+      "get": {
+        "tags": [
+          "policies"
+        ],
+        "summary": "List Policies",
+        "description": "List all immutable permission policies and their grant specifications.",
+        "operationId": "list_policies_api_v1_policies_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Policy"
+                  },
+                  "type": "array",
+                  "title": "Response List Policies Api V1 Policies Get"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "policies"
+        ],
+        "summary": "Create Policy",
+        "description": "Register a new immutable permission policy with SHA-256 canonical hash.",
+        "operationId": "create_policy_api_v1_policies_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PolicyCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Policy"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/policies/{policy_id}": {
+      "get": {
+        "tags": [
+          "policies"
+        ],
+        "summary": "Get Policy",
+        "description": "Retrieve full grant specification and lineage for a security policy.",
+        "operationId": "get_policy_api_v1_policies__policy_id__get",
+        "parameters": [
+          {
+            "name": "policy_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Policy Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Policy"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/policies/{policy_a}/diff/{policy_b}": {
+      "get": {
+        "tags": [
+          "policies"
+        ],
+        "summary": "Diff Policies",
+        "description": "Compute structural grant delta between two security policies.",
+        "operationId": "diff_policies_api_v1_policies__policy_a__diff__policy_b__get",
+        "parameters": [
+          {
+            "name": "policy_a",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Policy A"
+            }
+          },
+          {
+            "name": "policy_b",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Policy B"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PolicyDiff"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/runs": {
+      "post": {
+        "tags": [
+          "runs"
+        ],
+        "summary": "Create Runs",
+        "description": "Queue execution of single or batched attack and utility runs.",
+        "operationId": "create_runs_api_v1_runs_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RunCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "title": "Response Create Runs Api V1 Runs Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "runs"
+        ],
+        "summary": "List Runs",
+        "description": "List historical evaluation runs with pagination and filters.",
+        "operationId": "list_runs_api_v1_runs_get",
+        "parameters": [
+          {
+            "name": "target_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Target Id"
+            }
+          },
+          {
+            "name": "policy_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Policy Id"
+            }
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Kind"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "name": "scenario_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Scenario Id"
+            }
+          },
+          {
+            "name": "ids",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Ids"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_RunSummary_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/runs/{run_id}": {
+      "get": {
+        "tags": [
+          "runs"
+        ],
+        "summary": "Get Run",
+        "description": "Retrieve top-level run execution summary, verdict, and metadata.",
+        "operationId": "get_run_api_v1_runs__run_id__get",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Run"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/runs/{run_id}/trace": {
+      "get": {
+        "tags": [
+          "runs"
+        ],
+        "summary": "Get Run Trace",
+        "description": "Retrieve full step-by-step tool invocation trace with highlighted vectors.",
+        "operationId": "get_run_trace_api_v1_runs__run_id__trace_get",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TraceStep"
+                  },
+                  "title": "Response Get Run Trace Api V1 Runs  Run Id  Trace Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/runs/{run_id}/snapshots": {
+      "get": {
+        "tags": [
+          "runs"
+        ],
+        "summary": "Get Run Snapshots",
+        "description": "Retrieve PRE and POST environment snapshots for state diff verification.",
+        "operationId": "get_run_snapshots_api_v1_runs__run_id__snapshots_get",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SnapshotPair"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/runs/{run_id}/graph": {
+      "get": {
+        "tags": [
+          "runs"
+        ],
+        "summary": "Get Run Graph",
+        "description": "Retrieve causal attack graph connecting attack vector to exploit effect.",
+        "operationId": "get_run_graph_api_v1_runs__run_id__graph_get",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttackGraph"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/runs/{run_id}/verify": {
+      "post": {
+        "tags": [
+          "runs"
+        ],
+        "summary": "Verify Run",
+        "description": "Deterministically re-verify environment state diff predicates and canary tokens.",
+        "operationId": "verify_run_api_v1_runs__run_id__verify_post",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Verdict"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/runs/{run_id}/cancel": {
+      "post": {
+        "tags": [
+          "runs"
+        ],
+        "summary": "Cancel Run",
+        "description": "Cancel an active or queued run.",
+        "operationId": "cancel_run_api_v1_runs__run_id__cancel_post",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Run"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/runs/{run_id}/replay": {
+      "post": {
+        "tags": [
+          "runs"
+        ],
+        "summary": "Replay Run",
+        "description": "Queue a deterministic replay of a previous run under identical initial conditions.",
+        "operationId": "replay_run_api_v1_runs__run_id__replay_post",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "title": "Response Replay Run Api V1 Runs  Run Id  Replay Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sleeper-runs": {
+      "post": {
+        "tags": [
+          "sleeper"
+        ],
+        "summary": "Create Sleeper Run",
+        "description": "Launch a multi-session sleeper evaluation (Plant -> Gap -> Trigger).",
+        "operationId": "create_sleeper_run_api_v1_sleeper_runs_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SleeperRunCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SleeperRun"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "sleeper"
+        ],
+        "summary": "List Sleeper Runs",
+        "description": "List cross-session sleeper test runs and their outcomes.",
+        "operationId": "list_sleeper_runs_api_v1_sleeper_runs_get",
+        "parameters": [
+          {
+            "name": "target_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Target Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_SleeperRun_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sleeper-runs/{sleeper_id}": {
+      "get": {
+        "tags": [
+          "sleeper"
+        ],
+        "summary": "Get Sleeper Run",
+        "description": "Retrieve multi-session lifecycle data and persistent memory diffs.",
+        "operationId": "get_sleeper_run_api_v1_sleeper_runs__sleeper_id__get",
+        "parameters": [
+          {
+            "name": "sleeper_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Sleeper Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SleeperRun"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/discovery": {
+      "post": {
+        "tags": [
+          "discovery"
+        ],
+        "summary": "Start Discovery",
+        "description": "Launch an autonomous mutation campaign to discover novel exploit variants.",
+        "operationId": "start_discovery_api_v1_discovery_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DiscoveryCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DiscoveryCampaign"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "discovery"
+        ],
+        "summary": "List Discovery Campaigns",
+        "description": "List autonomous discovery campaigns.",
+        "operationId": "list_discovery_campaigns_api_v1_discovery_get",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_DiscoveryCampaign_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/discovery/{campaign_id}": {
+      "get": {
+        "tags": [
+          "discovery"
+        ],
+        "summary": "Get Discovery Campaign",
+        "description": "Retrieve discovery campaign progress, mutations tried, and breakthroughs.",
+        "operationId": "get_discovery_campaign_api_v1_discovery__campaign_id__get",
+        "parameters": [
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Campaign Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DiscoveryCampaign"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/findings": {
+      "get": {
+        "tags": [
+          "findings"
+        ],
+        "summary": "List Findings",
+        "description": "List deduplicated vulnerability findings with severity filters.",
+        "operationId": "list_findings_api_v1_findings_get",
+        "parameters": [
+          {
+            "name": "severity",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Severity"
+            }
+          },
+          {
+            "name": "status_filter",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status Filter"
+            }
+          },
+          {
+            "name": "scenario_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Scenario Id"
+            }
+          },
+          {
+            "name": "target_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Target Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_Finding_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/findings/{finding_id}": {
+      "get": {
+        "tags": [
+          "findings"
+        ],
+        "summary": "Get Finding",
+        "description": "Retrieve details, carrier traces, and causal attribution for a finding.",
+        "operationId": "get_finding_api_v1_findings__finding_id__get",
+        "parameters": [
+          {
+            "name": "finding_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Finding Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Finding"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "findings"
+        ],
+        "summary": "Update Finding",
+        "description": "Update status (open, acknowledged, fixed, dismissed) or notes on a finding.",
+        "operationId": "update_finding_api_v1_findings__finding_id__patch",
+        "parameters": [
+          {
+            "name": "finding_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Finding Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FindingUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Finding"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/graph": {
+      "get": {
+        "tags": [
+          "findings"
+        ],
+        "summary": "Get Aggregate Graph",
+        "description": "Retrieve multi-finding aggregated attack graph across all evaluated scenarios.",
+        "operationId": "get_aggregate_graph_api_v1_graph_get",
+        "parameters": [
+          {
+            "name": "target_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Target Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttackGraph"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/audits": {
+      "post": {
+        "tags": [
+          "audits"
+        ],
+        "summary": "Create Audit",
+        "description": "Trigger a permission attribution audit comparing granted vs needed tools.",
+        "operationId": "create_audit_api_v1_audits_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuditCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PermissionAudit"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "audits"
+        ],
+        "summary": "List Audits",
+        "description": "List permission attribution audit jobs.",
+        "operationId": "list_audits_api_v1_audits_get",
+        "parameters": [
+          {
+            "name": "target_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Target Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_PermissionAudit_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/audits/{audit_id}": {
+      "get": {
+        "tags": [
+          "audits"
+        ],
+        "summary": "Get Audit",
+        "description": "Retrieve full attribution breakdown, excess tools, and proof of utility.",
+        "operationId": "get_audit_api_v1_audits__audit_id__get",
+        "parameters": [
+          {
+            "name": "audit_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Audit Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PermissionAudit"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/audits/{audit_id}/fixes": {
+      "get": {
+        "tags": [
+          "audits"
+        ],
+        "summary": "List Fix Suggestions",
+        "description": "List candidate policy fixes suggested by the audit findings.",
+        "operationId": "list_fix_suggestions_api_v1_audits__audit_id__fixes_get",
+        "parameters": [
+          {
+            "name": "audit_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Audit Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/FixSuggestion"
+                  },
+                  "title": "Response List Fix Suggestions Api V1 Audits  Audit Id  Fixes Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/audits/{audit_id}/fixes/evaluate-all": {
+      "post": {
+        "tags": [
+          "audits"
+        ],
+        "summary": "Evaluate All Fixes",
+        "description": "Queue parallel price tag evaluation for all suggested fixes.",
+        "operationId": "evaluate_all_fixes_api_v1_audits__audit_id__fixes_evaluate_all_post",
+        "parameters": [
+          {
+            "name": "audit_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Audit Id"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "title": "Response Evaluate All Fixes Api V1 Audits  Audit Id  Fixes Evaluate All Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/fix-evals": {
+      "post": {
+        "tags": [
+          "fixes"
+        ],
+        "summary": "Create Fix Eval",
+        "description": "Queue empirical evaluation of a proposed fix across attacks and benign tasks.",
+        "operationId": "create_fix_eval_api_v1_fix_evals_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FixEvalCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FixEval"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "fixes"
+        ],
+        "summary": "List Fix Evals",
+        "description": "List fix evaluations with two-dimensional price tags and Pareto statuses.",
+        "operationId": "list_fix_evals_api_v1_fix_evals_get",
+        "parameters": [
+          {
+            "name": "audit_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Audit Id"
+            }
+          },
+          {
+            "name": "target_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Target Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_FixEval_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/fix-evals/{fix_eval_id}": {
+      "get": {
+        "tags": [
+          "fixes"
+        ],
+        "summary": "Get Fix Eval",
+        "description": "Retrieve detailed results, blocked cases, and broken tasks for a fix evaluation.",
+        "operationId": "get_fix_eval_api_v1_fix_evals__fix_eval_id__get",
+        "parameters": [
+          {
+            "name": "fix_eval_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Fix Eval Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FixEval"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/fix-evals/{fix_eval_id}/retest": {
+      "post": {
+        "tags": [
+          "fixes"
+        ],
+        "summary": "Retest Fix",
+        "description": "Trigger a fresh retest of the evaluated mitigation.",
+        "operationId": "retest_fix_api_v1_fix_evals__fix_eval_id__retest_post",
+        "parameters": [
+          {
+            "name": "fix_eval_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Fix Eval Id"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FixEval"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/fix-evals/{fix_eval_id}/apply": {
+      "post": {
+        "tags": [
+          "fixes"
+        ],
+        "summary": "Apply Fix",
+        "description": "Generate and activate the child hardened security policy derived from this fix.",
+        "operationId": "apply_fix_api_v1_fix_evals__fix_eval_id__apply_post",
+        "parameters": [
+          {
+            "name": "fix_eval_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Fix Eval Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Policy"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/dashboard/summary": {
+      "get": {
+        "tags": [
+          "dashboard"
+        ],
+        "summary": "Get Dashboard Summary",
+        "description": "Return high-level security metrics, severity breakdown, and recent runs.",
+        "operationId": "get_dashboard_summary_api_v1_dashboard_summary_get",
+        "parameters": [
+          {
+            "name": "target_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Target Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardSummary"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reports": {
+      "post": {
+        "tags": [
+          "dashboard"
+        ],
+        "summary": "Create Report",
+        "description": "Generate a reproducible evidence report for an evaluation run.",
+        "operationId": "create_report_api_v1_reports_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReportCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Report"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "dashboard"
+        ],
+        "summary": "List Reports",
+        "description": "List historical evidence reports.",
+        "operationId": "list_reports_api_v1_reports_get",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_Report_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reports/{report_id}": {
+      "get": {
+        "tags": [
+          "dashboard"
+        ],
+        "summary": "Get Report",
+        "description": "Retrieve full markdown and cryptographic metadata for a report.",
+        "operationId": "get_report_api_v1_reports__report_id__get",
+        "parameters": [
+          {
+            "name": "report_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Report Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Report"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reports/{report_id}/download": {
+      "get": {
+        "tags": [
+          "dashboard"
+        ],
+        "summary": "Download Report",
+        "description": "Download the evidence report file in Markdown format.",
+        "operationId": "download_report_api_v1_reports__report_id__download_get",
+        "parameters": [
+          {
+            "name": "report_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Report Id"
+            }
+          },
+          {
+            "name": "format",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "md",
+              "title": "Format"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/demo/run": {
+      "post": {
+        "tags": [
+          "dashboard"
+        ],
+        "summary": "Run Demo",
+        "description": "Launch the 1-minute live demo scan across attack scenarios.",
+        "operationId": "run_demo_api_v1_demo_run_post",
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DemoStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/demo/{demo_id}": {
+      "get": {
+        "tags": [
+          "dashboard"
+        ],
+        "summary": "Get Demo Status",
+        "description": "Poll live execution status for an active demo scan.",
+        "operationId": "get_demo_status_api_v1_demo__demo_id__get",
+        "parameters": [
+          {
+            "name": "demo_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Demo Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DemoStatus"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ArgConstraint": {
+        "properties": {
+          "arg": {
+            "type": "string",
+            "title": "Arg"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind",
+            "default": "domain_allowlist"
+          },
+          "values": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Values"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "arg",
+          "values"
+        ],
+        "title": "ArgConstraint"
+      },
+      "AttackCase": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "scenario_id": {
+            "type": "string",
+            "title": "Scenario Id"
+          },
+          "carrier_task_id": {
+            "type": "string",
+            "title": "Carrier Task Id"
+          },
+          "injection_task_id": {
+            "type": "string",
+            "title": "Injection Task Id"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "scenario_id",
+          "carrier_task_id",
+          "injection_task_id",
+          "description"
+        ],
+        "title": "AttackCase"
+      },
+      "AttackGraph": {
+        "properties": {
+          "nodes": {
+            "items": {
+              "$ref": "#/components/schemas/GraphNode"
+            },
+            "type": "array",
+            "title": "Nodes"
+          },
+          "edges": {
+            "items": {
+              "$ref": "#/components/schemas/GraphEdge"
+            },
+            "type": "array",
+            "title": "Edges"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "nodes",
+          "edges"
+        ],
+        "title": "AttackGraph"
+      },
+      "AuditCreate": {
+        "properties": {
+          "target_id": {
+            "type": "string",
+            "title": "Target Id"
+          },
+          "policy_id": {
+            "type": "string",
+            "title": "Policy Id"
+          },
+          "verify_counterfactual": {
+            "type": "boolean",
+            "title": "Verify Counterfactual",
+            "default": true
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "target_id",
+          "policy_id"
+        ],
+        "title": "AuditCreate"
+      },
+      "AuditProof": {
+        "properties": {
+          "benign_total": {
+            "type": "integer",
+            "title": "Benign Total"
+          },
+          "benign_pass_under_minimal": {
+            "type": "integer",
+            "title": "Benign Pass Under Minimal"
+          },
+          "run_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Run Ids"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "benign_total",
+          "benign_pass_under_minimal"
+        ],
+        "title": "AuditProof"
+      },
+      "CounterfactualResult": {
+        "properties": {
+          "blocked": {
+            "type": "boolean",
+            "title": "Blocked"
+          },
+          "benign_broken": {
+            "type": "integer",
+            "title": "Benign Broken"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "blocked",
+          "benign_broken"
+        ],
+        "title": "CounterfactualResult"
+      },
+      "DashboardSummary": {
+        "properties": {
+          "attack_success_rate": {
+            "type": "number",
+            "title": "Attack Success Rate"
+          },
+          "benign_pass_rate": {
+            "type": "number",
+            "title": "Benign Pass Rate"
+          },
+          "total_attacks": {
+            "type": "integer",
+            "title": "Total Attacks"
+          },
+          "successful_attacks": {
+            "type": "integer",
+            "title": "Successful Attacks"
+          },
+          "total_benign": {
+            "type": "integer",
+            "title": "Total Benign"
+          },
+          "passed_benign": {
+            "type": "integer",
+            "title": "Passed Benign"
+          },
+          "findings_by_severity": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Findings By Severity"
+          },
+          "open_findings": {
+            "type": "integer",
+            "title": "Open Findings"
+          },
+          "fixes_applied": {
+            "type": "integer",
+            "title": "Fixes Applied"
+          },
+          "recent_runs": {
+            "items": {
+              "$ref": "#/components/schemas/RunSummary"
+            },
+            "type": "array",
+            "title": "Recent Runs"
+          },
+          "trend": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Trend"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "attack_success_rate",
+          "benign_pass_rate",
+          "total_attacks",
+          "successful_attacks",
+          "total_benign",
+          "passed_benign",
+          "findings_by_severity",
+          "open_findings",
+          "fixes_applied",
+          "recent_runs"
+        ],
+        "title": "DashboardSummary"
+      },
+      "DemoLinks": {
+        "properties": {
+          "dashboard": {
+            "type": "string",
+            "title": "Dashboard",
+            "default": "/dashboard"
+          },
+          "run": {
+            "type": "string",
+            "title": "Run",
+            "default": "/runs/run_demo_as04"
+          },
+          "audit": {
+            "type": "string",
+            "title": "Audit",
+            "default": "/permissions"
+          },
+          "fixlab": {
+            "type": "string",
+            "title": "Fixlab",
+            "default": "/fixes"
+          },
+          "sleeper": {
+            "type": "string",
+            "title": "Sleeper",
+            "default": "/sleeper"
+          },
+          "report": {
+            "type": "string",
+            "title": "Report",
+            "default": "/report"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "DemoLinks"
+      },
+      "DemoStage": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "running",
+              "completed",
+              "error"
+            ],
+            "title": "Status"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "status"
+        ],
+        "title": "DemoStage"
+      },
+      "DemoStatus": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "running",
+              "completed",
+              "error"
+            ],
+            "title": "Status"
+          },
+          "stage": {
+            "type": "string",
+            "title": "Stage"
+          },
+          "stages": {
+            "items": {
+              "$ref": "#/components/schemas/DemoStage"
+            },
+            "type": "array",
+            "title": "Stages"
+          },
+          "links": {
+            "$ref": "#/components/schemas/DemoLinks"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "status",
+          "stage",
+          "stages"
+        ],
+        "title": "DemoStatus"
+      },
+      "DiscoveryAttempt": {
+        "properties": {
+          "n": {
+            "type": "integer",
+            "title": "N"
+          },
+          "case_id": {
+            "type": "string",
+            "title": "Case Id"
+          },
+          "fingerprint": {
+            "type": "string",
+            "title": "Fingerprint"
+          },
+          "origin": {
+            "type": "string",
+            "enum": [
+              "static",
+              "mutated",
+              "llm"
+            ],
+            "title": "Origin"
+          },
+          "mutation_chain": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Mutation Chain"
+          },
+          "run_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Id"
+          },
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "n",
+          "case_id",
+          "fingerprint",
+          "origin",
+          "success"
+        ],
+        "title": "DiscoveryAttempt"
+      },
+      "DiscoveryBudget": {
+        "properties": {
+          "max_attempts": {
+            "type": "integer",
+            "title": "Max Attempts",
+            "default": 40
+          },
+          "max_seconds": {
+            "type": "integer",
+            "title": "Max Seconds",
+            "default": 300
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "DiscoveryBudget"
+      },
+      "DiscoveryCampaign": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "target_id": {
+            "type": "string",
+            "title": "Target Id"
+          },
+          "policy_id": {
+            "type": "string",
+            "title": "Policy Id"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "running",
+              "done",
+              "error"
+            ],
+            "title": "Status"
+          },
+          "attempts": {
+            "type": "integer",
+            "title": "Attempts",
+            "default": 0
+          },
+          "successes": {
+            "type": "integer",
+            "title": "Successes",
+            "default": 0
+          },
+          "coverage": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Coverage"
+          },
+          "attempts_list": {
+            "items": {
+              "$ref": "#/components/schemas/DiscoveryAttempt"
+            },
+            "type": "array",
+            "title": "Attempts List"
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "target_id",
+          "policy_id",
+          "status",
+          "created_at"
+        ],
+        "title": "DiscoveryCampaign"
+      },
+      "DiscoveryCreate": {
+        "properties": {
+          "target_id": {
+            "type": "string",
+            "title": "Target Id"
+          },
+          "policy_id": {
+            "type": "string",
+            "title": "Policy Id"
+          },
+          "scenario_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Scenario Ids"
+          },
+          "budget": {
+            "$ref": "#/components/schemas/DiscoveryBudget"
+          },
+          "seed": {
+            "type": "integer",
+            "title": "Seed",
+            "default": 42
+          },
+          "use_attacker_llm": {
+            "type": "boolean",
+            "title": "Use Attacker Llm",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "target_id",
+          "policy_id"
+        ],
+        "title": "DiscoveryCreate"
+      },
+      "EnabledExploit": {
+        "properties": {
+          "case_id": {
+            "type": "string",
+            "title": "Case Id"
+          },
+          "finding_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finding Id"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "enabling",
+              "observed"
+            ],
+            "title": "Role"
+          },
+          "counterfactual": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CounterfactualResult"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "case_id",
+          "role"
+        ],
+        "title": "EnabledExploit"
+      },
+      "Evidence": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "state_diff",
+              "canary_seen",
+              "call_match"
+            ],
+            "title": "Type"
+          },
+          "path": {
+            "type": "string",
+            "title": "Path"
+          },
+          "before": {
+            "title": "Before"
+          },
+          "after": {
+            "title": "After"
+          },
+          "detail": {
+            "type": "string",
+            "title": "Detail"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "path",
+          "before",
+          "after",
+          "detail"
+        ],
+        "title": "Evidence"
+      },
+      "Finding": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "fingerprint": {
+            "type": "string",
+            "title": "Fingerprint"
+          },
+          "target_id": {
+            "type": "string",
+            "title": "Target Id"
+          },
+          "scenario_id": {
+            "type": "string",
+            "title": "Scenario Id"
+          },
+          "case_id": {
+            "type": "string",
+            "title": "Case Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "critical",
+              "high",
+              "medium",
+              "low"
+            ],
+            "title": "Severity"
+          },
+          "impact_class": {
+            "type": "string",
+            "title": "Impact Class"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "open",
+              "fixed",
+              "regressed",
+              "accepted_risk",
+              "partially_mitigated"
+            ],
+            "title": "Status"
+          },
+          "success_rate": {
+            "type": "number",
+            "title": "Success Rate",
+            "default": 1.0
+          },
+          "confidence": {
+            "type": "string",
+            "enum": [
+              "confirmed",
+              "flaky"
+            ],
+            "title": "Confidence",
+            "default": "confirmed"
+          },
+          "enabling_permissions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Enabling Permissions"
+          },
+          "first_run_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First Run Id"
+          },
+          "last_run_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Run Id"
+          },
+          "occurrences": {
+            "type": "integer",
+            "title": "Occurrences",
+            "default": 1
+          },
+          "first_seen": {
+            "type": "string",
+            "title": "First Seen"
+          },
+          "last_seen": {
+            "type": "string",
+            "title": "Last Seen"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "fingerprint",
+          "target_id",
+          "scenario_id",
+          "case_id",
+          "title",
+          "severity",
+          "impact_class",
+          "status",
+          "first_seen",
+          "last_seen"
+        ],
+        "title": "Finding"
+      },
+      "FindingUpdate": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "open",
+              "accepted_risk"
+            ],
+            "title": "Status"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "title": "FindingUpdate"
+      },
+      "FixEval": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "audit_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Audit Id"
+          },
+          "target_id": {
+            "type": "string",
+            "title": "Target Id"
+          },
+          "base_policy_id": {
+            "type": "string",
+            "title": "Base Policy Id"
+          },
+          "fix": {
+            "$ref": "#/components/schemas/FixSpec"
+          },
+          "result_policy_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Result Policy Id"
+          },
+          "trials": {
+            "type": "integer",
+            "title": "Trials",
+            "default": 1
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "running",
+              "done",
+              "error"
+            ],
+            "title": "Status"
+          },
+          "price_tag": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PriceTag"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "details": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FixEvalDetails"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "retest_of": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retest Of"
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "target_id",
+          "base_policy_id",
+          "fix",
+          "status",
+          "created_at"
+        ],
+        "title": "FixEval"
+      },
+      "FixEvalCreate": {
+        "properties": {
+          "target_id": {
+            "type": "string",
+            "title": "Target Id"
+          },
+          "base_policy_id": {
+            "type": "string",
+            "title": "Base Policy Id"
+          },
+          "fix": {
+            "$ref": "#/components/schemas/FixSpec"
+          },
+          "trials": {
+            "type": "integer",
+            "title": "Trials",
+            "default": 1
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "target_id",
+          "base_policy_id",
+          "fix"
+        ],
+        "title": "FixEvalCreate"
+      },
+      "FixEvalDetails": {
+        "properties": {
+          "blocked_cases": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Blocked Cases"
+          },
+          "still_exploitable": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Still Exploitable"
+          },
+          "broken_tasks": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Broken Tasks"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "FixEvalDetails"
+      },
+      "FixSpec": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "remove_permission",
+              "restrict_arg",
+              "defense",
+              "prompt_hardening"
+            ],
+            "title": "Kind"
+          },
+          "tool": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tool"
+          },
+          "args": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Args"
+          },
+          "domains": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Domains"
+          },
+          "defense_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Defense Name"
+          },
+          "prompt_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prompt Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind"
+        ],
+        "title": "FixSpec"
+      },
+      "FixSuggestion": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "fix": {
+            "$ref": "#/components/schemas/FixSpec"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "targeted_exploits": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Targeted Exploits"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "fix",
+          "title",
+          "description"
+        ],
+        "title": "FixSuggestion"
+      },
+      "Grant": {
+        "properties": {
+          "tool": {
+            "type": "string",
+            "title": "Tool"
+          },
+          "constraints": {
+            "items": {
+              "$ref": "#/components/schemas/ArgConstraint"
+            },
+            "type": "array",
+            "title": "Constraints"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "tool"
+        ],
+        "title": "Grant"
+      },
+      "GraphEdge": {
+        "properties": {
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "target": {
+            "type": "string",
+            "title": "Target"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "source",
+          "target"
+        ],
+        "title": "GraphEdge"
+      },
+      "GraphNode": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "vector",
+              "tool",
+              "impact",
+              "finding"
+            ],
+            "title": "Type"
+          },
+          "severity": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Severity"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count",
+            "default": 1
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "label",
+          "type"
+        ],
+        "title": "GraphNode"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "Health": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "version": {
+            "type": "string",
+            "title": "Version"
+          },
+          "agentdojo_version": {
+            "type": "string",
+            "title": "Agentdojo Version"
+          },
+          "db_ok": {
+            "type": "boolean",
+            "title": "Db Ok"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "status",
+          "version",
+          "agentdojo_version",
+          "db_ok"
+        ],
+        "title": "Health"
+      },
+      "Meta": {
+        "properties": {
+          "suites": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Suites"
+          },
+          "scenarios": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Scenarios"
+          },
+          "fix_kinds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Fix Kinds"
+          },
+          "defenses": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Defenses"
+          },
+          "verifier_version": {
+            "type": "string",
+            "title": "Verifier Version"
+          },
+          "limits": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Limits"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "suites",
+          "scenarios",
+          "fix_kinds",
+          "defenses",
+          "verifier_version",
+          "limits"
+        ],
+        "title": "Meta"
+      },
+      "Page_DiscoveryCampaign_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/DiscoveryCampaign"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "limit",
+          "offset"
+        ],
+        "title": "Page[DiscoveryCampaign]"
+      },
+      "Page_Finding_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/Finding"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "limit",
+          "offset"
+        ],
+        "title": "Page[Finding]"
+      },
+      "Page_FixEval_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/FixEval"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "limit",
+          "offset"
+        ],
+        "title": "Page[FixEval]"
+      },
+      "Page_PermissionAudit_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PermissionAudit"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "limit",
+          "offset"
+        ],
+        "title": "Page[PermissionAudit]"
+      },
+      "Page_Report_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/Report"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "limit",
+          "offset"
+        ],
+        "title": "Page[Report]"
+      },
+      "Page_RunSummary_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/RunSummary"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "limit",
+          "offset"
+        ],
+        "title": "Page[RunSummary]"
+      },
+      "Page_SleeperRun_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/SleeperRun"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "limit",
+          "offset"
+        ],
+        "title": "Page[SleeperRun]"
+      },
+      "PermissionAudit": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "target_id": {
+            "type": "string",
+            "title": "Target Id"
+          },
+          "policy_id": {
+            "type": "string",
+            "title": "Policy Id"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "running",
+              "done",
+              "error"
+            ],
+            "title": "Status"
+          },
+          "stage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stage"
+          },
+          "granted": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Granted"
+          },
+          "needed": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Needed"
+          },
+          "excess": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Excess"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/PermissionRow"
+            },
+            "type": "array",
+            "title": "Rows"
+          },
+          "minimal_policy_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Minimal Policy Id"
+          },
+          "proof": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AuditProof"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "target_id",
+          "policy_id",
+          "status",
+          "created_at"
+        ],
+        "title": "PermissionAudit"
+      },
+      "PermissionRow": {
+        "properties": {
+          "tool": {
+            "type": "string",
+            "title": "Tool"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "needed",
+              "excess"
+            ],
+            "title": "Status"
+          },
+          "used_by_benign": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Used By Benign"
+          },
+          "enabled_exploits": {
+            "items": {
+              "$ref": "#/components/schemas/EnabledExploit"
+            },
+            "type": "array",
+            "title": "Enabled Exploits"
+          },
+          "suggested_scope": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SuggestedScope"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "tool",
+          "status",
+          "used_by_benign"
+        ],
+        "title": "PermissionRow"
+      },
+      "Policy": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Id"
+          },
+          "grants": {
+            "items": {
+              "$ref": "#/components/schemas/Grant"
+            },
+            "type": "array",
+            "title": "Grants"
+          },
+          "hash": {
+            "type": "string",
+            "title": "Hash"
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "grants",
+          "hash",
+          "created_at"
+        ],
+        "title": "Policy"
+      },
+      "PolicyCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Id"
+          },
+          "grants": {
+            "items": {
+              "$ref": "#/components/schemas/Grant"
+            },
+            "type": "array",
+            "title": "Grants"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "grants"
+        ],
+        "title": "PolicyCreate"
+      },
+      "PolicyDiff": {
+        "properties": {
+          "policy_a": {
+            "type": "string",
+            "title": "Policy A"
+          },
+          "policy_b": {
+            "type": "string",
+            "title": "Policy B"
+          },
+          "added_tools": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Added Tools"
+          },
+          "removed_tools": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Removed Tools"
+          },
+          "constraint_changes": {
+            "items": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Constraint Changes"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "policy_a",
+          "policy_b",
+          "added_tools",
+          "removed_tools",
+          "constraint_changes"
+        ],
+        "title": "PolicyDiff"
+      },
+      "PriceTag": {
+        "properties": {
+          "attacks_blocked": {
+            "type": "integer",
+            "title": "Attacks Blocked"
+          },
+          "attacks_total": {
+            "type": "integer",
+            "title": "Attacks Total"
+          },
+          "tasks_broken": {
+            "type": "integer",
+            "title": "Tasks Broken"
+          },
+          "benign_total": {
+            "type": "integer",
+            "title": "Benign Total"
+          },
+          "pareto": {
+            "type": "boolean",
+            "title": "Pareto",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "attacks_blocked",
+          "attacks_total",
+          "tasks_broken",
+          "benign_total"
+        ],
+        "title": "PriceTag"
+      },
+      "Report": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "target_id": {
+            "type": "string",
+            "title": "Target Id"
+          },
+          "policy_id": {
+            "type": "string",
+            "title": "Policy Id"
+          },
+          "markdown": {
+            "type": "string",
+            "title": "Markdown"
+          },
+          "meta": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Meta"
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "target_id",
+          "policy_id",
+          "markdown",
+          "created_at"
+        ],
+        "title": "Report"
+      },
+      "ReportCreate": {
+        "properties": {
+          "target_id": {
+            "type": "string",
+            "title": "Target Id"
+          },
+          "policy_id": {
+            "type": "string",
+            "title": "Policy Id"
+          },
+          "finding_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Finding Ids"
+          },
+          "format": {
+            "type": "string",
+            "const": "markdown",
+            "title": "Format",
+            "default": "markdown"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "target_id",
+          "policy_id"
+        ],
+        "title": "ReportCreate"
+      },
+      "Run": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "attack",
+              "benign",
+              "control"
+            ],
+            "title": "Kind"
+          },
+          "target_id": {
+            "type": "string",
+            "title": "Target Id"
+          },
+          "policy_id": {
+            "type": "string",
+            "title": "Policy Id"
+          },
+          "suite": {
+            "type": "string",
+            "title": "Suite"
+          },
+          "case_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Case Id"
+          },
+          "scenario_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scenario Id"
+          },
+          "user_task_id": {
+            "type": "string",
+            "title": "User Task Id"
+          },
+          "injection_task_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Injection Task Id"
+          },
+          "template_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Template Id"
+          },
+          "payload_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payload Text"
+          },
+          "payload_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payload Hash"
+          },
+          "origin": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "static",
+                  "mutated",
+                  "llm"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Origin"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "running",
+              "done",
+              "error",
+              "cancelled"
+            ],
+            "title": "Status"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "utility": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Utility"
+          },
+          "security": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Security"
+          },
+          "model_output": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Output"
+          },
+          "verdict": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Verdict"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "repro": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Repro"
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "target_id",
+          "policy_id",
+          "suite",
+          "user_task_id",
+          "status",
+          "repro",
+          "created_at"
+        ],
+        "title": "Run"
+      },
+      "RunCreate": {
+        "properties": {
+          "target_id": {
+            "type": "string",
+            "title": "Target Id"
+          },
+          "policy_id": {
+            "type": "string",
+            "title": "Policy Id"
+          },
+          "attack_case_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Attack Case Ids"
+          },
+          "benign_task_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Benign Task Ids"
+          },
+          "include_controls": {
+            "type": "boolean",
+            "title": "Include Controls",
+            "default": true
+          },
+          "trials": {
+            "type": "integer",
+            "title": "Trials",
+            "default": 1
+          },
+          "seed": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seed"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "target_id",
+          "policy_id"
+        ],
+        "title": "RunCreate"
+      },
+      "RunSummary": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "attack",
+              "benign",
+              "control"
+            ],
+            "title": "Kind"
+          },
+          "target_id": {
+            "type": "string",
+            "title": "Target Id"
+          },
+          "policy_id": {
+            "type": "string",
+            "title": "Policy Id"
+          },
+          "suite": {
+            "type": "string",
+            "title": "Suite"
+          },
+          "case_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Case Id"
+          },
+          "scenario_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scenario Id"
+          },
+          "user_task_id": {
+            "type": "string",
+            "title": "User Task Id"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "running",
+              "done",
+              "error",
+              "cancelled"
+            ],
+            "title": "Status"
+          },
+          "utility": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Utility"
+          },
+          "security": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Security"
+          },
+          "verdict_success": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verdict Success"
+          },
+          "severity": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Severity"
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "target_id",
+          "policy_id",
+          "suite",
+          "user_task_id",
+          "status",
+          "created_at"
+        ],
+        "title": "RunSummary"
+      },
+      "ScenarioSpec": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "vector": {
+            "type": "string",
+            "title": "Vector"
+          },
+          "predicate": {
+            "type": "string",
+            "title": "Predicate"
+          },
+          "severity": {
+            "type": "string",
+            "title": "Severity"
+          },
+          "impact_class": {
+            "type": "string",
+            "title": "Impact Class"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "description",
+          "vector",
+          "predicate",
+          "severity",
+          "impact_class"
+        ],
+        "title": "ScenarioSpec"
+      },
+      "SleeperRun": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "target_id": {
+            "type": "string",
+            "title": "Target Id"
+          },
+          "policy_id": {
+            "type": "string",
+            "title": "Policy Id"
+          },
+          "case_id": {
+            "type": "string",
+            "title": "Case Id"
+          },
+          "gap_sessions": {
+            "type": "integer",
+            "title": "Gap Sessions"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "running",
+              "done",
+              "error"
+            ],
+            "title": "Status"
+          },
+          "outcome": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "plant_failed",
+                  "trigger_blocked",
+                  "triggered"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Outcome"
+          },
+          "sessions": {
+            "items": {
+              "$ref": "#/components/schemas/SleeperSession"
+            },
+            "type": "array",
+            "title": "Sessions"
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "target_id",
+          "policy_id",
+          "case_id",
+          "gap_sessions",
+          "status",
+          "created_at"
+        ],
+        "title": "SleeperRun"
+      },
+      "SleeperRunCreate": {
+        "properties": {
+          "target_id": {
+            "type": "string",
+            "title": "Target Id"
+          },
+          "policy_id": {
+            "type": "string",
+            "title": "Policy Id"
+          },
+          "case_id": {
+            "type": "string",
+            "title": "Case Id",
+            "default": "AS-05"
+          },
+          "gap_sessions": {
+            "type": "integer",
+            "title": "Gap Sessions",
+            "default": 1
+          },
+          "seed": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seed"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "target_id",
+          "policy_id"
+        ],
+        "title": "SleeperRunCreate"
+      },
+      "SleeperSession": {
+        "properties": {
+          "idx": {
+            "type": "integer",
+            "title": "Idx"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "plant",
+              "gap",
+              "trigger"
+            ],
+            "title": "Role"
+          },
+          "run_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Id"
+          },
+          "memory_before": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Memory Before"
+          },
+          "memory_after": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Memory After"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "idx",
+          "role"
+        ],
+        "title": "SleeperSession"
+      },
+      "SnapshotPair": {
+        "properties": {
+          "pre": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Pre"
+          },
+          "post": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Post"
+          },
+          "diff": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Diff"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "pre",
+          "post",
+          "diff"
+        ],
+        "title": "SnapshotPair"
+      },
+      "SuggestedScope": {
+        "properties": {
+          "args": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Args"
+          },
+          "domain_allowlist": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Domain Allowlist"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "args",
+          "domain_allowlist"
+        ],
+        "title": "SuggestedScope"
+      },
+      "SuiteInfo": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "persona": {
+            "type": "string",
+            "title": "Persona"
+          },
+          "tools": {
+            "items": {
+              "$ref": "#/components/schemas/ToolInfo"
+            },
+            "type": "array",
+            "title": "Tools"
+          },
+          "benign_tasks": {
+            "items": {
+              "$ref": "#/components/schemas/TaskInfo"
+            },
+            "type": "array",
+            "title": "Benign Tasks"
+          },
+          "injection_tasks": {
+            "items": {
+              "$ref": "#/components/schemas/TaskInfo"
+            },
+            "type": "array",
+            "title": "Injection Tasks"
+          },
+          "vectors": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Vectors"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "persona",
+          "tools",
+          "benign_tasks",
+          "injection_tasks",
+          "vectors"
+        ],
+        "title": "SuiteInfo"
+      },
+      "Target": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "scripted",
+              "openai_compat"
+            ],
+            "title": "Kind"
+          },
+          "config": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Config"
+          },
+          "active_policy_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Active Policy Id"
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "kind",
+          "config",
+          "created_at"
+        ],
+        "title": "Target"
+      },
+      "TargetCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "scripted",
+              "openai_compat"
+            ],
+            "title": "Kind"
+          },
+          "config": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Config"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "kind"
+        ],
+        "title": "TargetCreate"
+      },
+      "TargetTestResult": {
+        "properties": {
+          "reachable": {
+            "type": "boolean",
+            "title": "Reachable"
+          },
+          "tool_calling": {
+            "type": "boolean",
+            "title": "Tool Calling"
+          },
+          "latency_ms": {
+            "type": "integer",
+            "title": "Latency Ms"
+          },
+          "notes": {
+            "type": "string",
+            "title": "Notes"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "reachable",
+          "tool_calling",
+          "latency_ms",
+          "notes"
+        ],
+        "title": "TargetTestResult"
+      },
+      "TaskInfo": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "prompt": {
+            "type": "string",
+            "title": "Prompt"
+          },
+          "ground_truth_tools": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Ground Truth Tools"
+          },
+          "carrier_vector": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Carrier Vector"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "prompt",
+          "ground_truth_tools"
+        ],
+        "title": "TaskInfo"
+      },
+      "ToolInfo": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "signature": {
+            "type": "string",
+            "title": "Signature"
+          },
+          "effect_class": {
+            "type": "string",
+            "title": "Effect Class"
+          },
+          "parameters": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Parameters"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "description",
+          "signature",
+          "effect_class"
+        ],
+        "title": "ToolInfo"
+      },
+      "TraceStep": {
+        "properties": {
+          "idx": {
+            "type": "integer",
+            "title": "Idx"
+          },
+          "session_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session Id"
+          },
+          "role": {
+            "type": "string",
+            "title": "Role"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "system",
+              "user",
+              "assistant",
+              "tool_call",
+              "tool_result"
+            ],
+            "title": "Kind"
+          },
+          "tool": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tool"
+          },
+          "args": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Args"
+          },
+          "content": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content"
+          },
+          "flags": {
+            "additionalProperties": {
+              "type": "boolean"
+            },
+            "type": "object",
+            "title": "Flags"
+          },
+          "caused_by_idx": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Caused By Idx"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "idx",
+          "role",
+          "kind"
+        ],
+        "title": "TraceStep"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "Verdict": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "classification": {
+            "type": "string",
+            "enum": [
+              "exploited",
+              "blocked",
+              "said_not_did",
+              "invalid_run",
+              "error"
+            ],
+            "title": "Classification"
+          },
+          "impact_class": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Impact Class"
+          },
+          "severity": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "critical",
+                  "high",
+                  "medium",
+                  "low",
+                  "none"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Severity"
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/components/schemas/Evidence"
+            },
+            "type": "array",
+            "title": "Evidence"
+          },
+          "verifier_version": {
+            "type": "string",
+            "title": "Verifier Version"
+          },
+          "verdict_hash": {
+            "type": "string",
+            "title": "Verdict Hash"
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At"
+          },
+          "matches_stored": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Matches Stored"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "success",
+          "classification",
+          "verifier_version",
+          "verdict_hash",
+          "created_at"
+        ],
+        "title": "Verdict"
+      }
+    }
+  }
+}

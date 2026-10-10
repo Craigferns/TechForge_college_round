@@ -112,18 +112,20 @@ Repo is initialized (branch `main`, remote `origin` = https://github.com/Craigfe
   - [x] Clarifying questions answered (targets: both pipeline + external HTTP; sleeper memory: tool + env field; LLM: Ollama for both; Docker: optional)
   - [x] 12 phases supplied by the owner adopted and split into 37 milestones
   - [x] PLAN.md, README.md, CLAUDE.md written
-  - [x] Toolchain checked (versions in §3); AgentDojo docs reviewed (PLAN Appendix A)
-  - [x] Idea Council run → **FIX FIRST** (PLAN §2)
-  - [x] Docs pushed to GitHub `Craigferns/TechForge_college_round` `main` (commit `b6a5404`)
-- **Next (after approval):** **M1.1 Repo & tooling**, then M1.2 (AgentDojo spike — resolves V-01…V-09, V-11), M1.3 (contract + mocks).
+- **Current status:** **Phase 1 Foundation and Setup complete** (M1.1–M1.6 all verified).
+  - [x] Repo & tooling initialized (`uv` with Python 3.11, FastAPI, Pydantic v2, Ruff, Mypy, Pytest; React 18 + Vite + Tailwind + Framer Motion)
+  - [x] AgentDojo spike executed (`scripts/spike_agentdojo.py` verified V-01..V-11)
+  - [x] API contract schemas (11 modules) & 51 route stubs returning 501 with `/api/v1/health` and `/api/v1/meta` active
+  - [x] `openapi.json` exported and verified against drift (`test_openapi.py`)
+  - [x] Frontend 7 screens built against typed mock fixtures with Framer Motion, Dark Bento UI, accessible badges/buttons
+  - [x] All 7 quality gates green (`pytest`, `ruff`, `mypy`, `tsc`, `eslint`, `vitest`, `vite build`)
+- **Next (after demo review & user approval):** **Phase 2 Data model and policies** (M2.1 SQLite schema & migration runner, M2.2 repository layer, M2.3 policy engine & hashing, M2.4 Acme sandbox suite & tools).
 - **Open items / blockers:**
-  - [VERIFY] V-10 verified (clean resolution of 72 pure wheels, 0 compile steps on Windows 11). V-01…V-09, V-11 to be confirmed in M1.2 spike.
-  - Owner action before M3.2's live test: `ollama pull` a **tool-calling-capable** model. The only installed model, `deepseek-r1-16k`, probably cannot do native tool calls (the scripted target does not need Ollama).
-  - Owner decisions pending: Q-01 (portfolio vs product), Q-07 (license). Idea Council wants one real data point (see PLAN §2).
+  - Owner review of Phase 1 interactive demo. Do not push to remote until approved.
 - **Success criteria (PLAN §1.5):** SM-1 ☐ · SM-2 ☐ · SM-3 ☐ · SM-4 ☐ · SM-5 ☐ · SM-6 ☐ · SM-7 ☐ · SM-8 ☐
 
 ### Milestone checklist (tick when its *Done when* is verified)
-- Phase 1 Foundation and setup: ☐ M1.1 ☐ M1.2 ☐ M1.3 ☐ M1.4 ☐ M1.5 ☐ M1.6
+- Phase 1 Foundation and setup: [x] M1.1 [x] M1.2 [x] M1.3 [x] M1.4 [x] M1.5 [x] M1.6
 - Phase 2 Data model and policies: ☐ M2.1 ☐ M2.2 ☐ M2.3 ☐ M2.4
 - Phase 3 Simulated AI agent: ☐ M3.1 ☐ M3.2 ☐ M3.3
 - Phase 4 Security test engine: ☐ M4.1 ☐ M4.2 ☐ M4.3 ☐ M4.4
@@ -176,8 +178,9 @@ Repo is initialized (branch `main`, remote `origin` = https://github.com/Craigfe
 | 2026-10-10 | No ORM, no Celery/SSE, no Jinja2/typer/TanStack Query; PDF via print stylesheet; `react-markdown` for the report | YAGNI; each omission/addition has a stated reason (PLAN §17.4) |
 | 2026-10-10 | Pin `agentdojo==0.1.35` (released 2025-10-27, Python ≥ 3.10) | Reproducibility; upgrades are deliberate |
 | 2026-10-10 | Idea Council verdict **FIX FIRST** (no real-world evidence supplied); "bring your own tool manifest" is the first post-MVP item | Biggest risk is the fidelity gap (PLAN §2, R-01) |
-| 2026-10-10 | Verified [VERIFY] V-10: `uv` resolves `agentdojo==0.1.35` cleanly on Windows 11 / Python 3.11 with 72 pure wheels, 0 compilation steps | Resolves V-10 ahead of M1.2 spike |
 | 2026-10-10 | Add `lucide-react`, `clsx`, `tailwind-merge` to frontend; add `PRAGMA busy_timeout = 5000` to SQLite | Required for WCAG 2.2 AA non-color status icons and Windows multi-threaded DB concurrency |
+| 2026-10-10 | Phase 1 completed: agentdojo spike verified V-01..V-11; Pydantic v2 contract + 51 API stubs; openapi.json generated; React 18 + Vite + Tailwind + Framer Motion frontend with all 7 screens built against mock fixtures (`VITE_API_MODE=mock`); all quality gates passing (pytest, ruff, mypy, tsc, eslint, vitest, vite build) | Milestones M1.1 through M1.6 verified; demo ready for user inspection before remote push |
+| 2026-10-10 | DEFENSES imported from `agentdojo.agent_pipeline.agent_pipeline` (resolves V-09); task suite custom injection helper used for acme (resolves V-06) | Confirmed via live inspection of installed `agentdojo==0.1.35` wheel |
 
 *Add a row for every decision, dependency, or deviation from PLAN.md, in the session it happens — including the outcome of each [VERIFY] item in M1.2.*
 
