@@ -115,9 +115,9 @@ Repo is initialized (branch `main`, remote `origin` = https://github.com/Craigfe
   - [x] Toolchain checked (versions in §3); AgentDojo docs reviewed (PLAN Appendix A)
   - [x] Idea Council run → **FIX FIRST** (PLAN §2)
   - [x] Docs pushed to GitHub `Craigferns/TechForge_college_round` `main` (commit `b6a5404`)
-- **Next (after approval):** **M1.1 Repo & tooling**, then M1.2 (AgentDojo spike — resolves V-01…V-11), M1.3 (contract + mocks).
+- **Next (after approval):** **M1.1 Repo & tooling**, then M1.2 (AgentDojo spike — resolves V-01…V-09, V-11), M1.3 (contract + mocks).
 - **Open items / blockers:**
-  - All [VERIFY] items V-01…V-11 unresolved (M1.2 closes them).
+  - [VERIFY] V-10 verified (clean resolution of 72 pure wheels, 0 compile steps on Windows 11). V-01…V-09, V-11 to be confirmed in M1.2 spike.
   - Owner action before M3.2's live test: `ollama pull` a **tool-calling-capable** model. The only installed model, `deepseek-r1-16k`, probably cannot do native tool calls (the scripted target does not need Ollama).
   - Owner decisions pending: Q-01 (portfolio vs product), Q-07 (license). Idea Council wants one real data point (see PLAN §2).
 - **Success criteria (PLAN §1.5):** SM-1 ☐ · SM-2 ☐ · SM-3 ☐ · SM-4 ☐ · SM-5 ☐ · SM-6 ☐ · SM-7 ☐ · SM-8 ☐
@@ -176,6 +176,8 @@ Repo is initialized (branch `main`, remote `origin` = https://github.com/Craigfe
 | 2026-10-10 | No ORM, no Celery/SSE, no Jinja2/typer/TanStack Query; PDF via print stylesheet; `react-markdown` for the report | YAGNI; each omission/addition has a stated reason (PLAN §17.4) |
 | 2026-10-10 | Pin `agentdojo==0.1.35` (released 2025-10-27, Python ≥ 3.10) | Reproducibility; upgrades are deliberate |
 | 2026-10-10 | Idea Council verdict **FIX FIRST** (no real-world evidence supplied); "bring your own tool manifest" is the first post-MVP item | Biggest risk is the fidelity gap (PLAN §2, R-01) |
+| 2026-10-10 | Verified [VERIFY] V-10: `uv` resolves `agentdojo==0.1.35` cleanly on Windows 11 / Python 3.11 with 72 pure wheels, 0 compilation steps | Resolves V-10 ahead of M1.2 spike |
+| 2026-10-10 | Add `lucide-react`, `clsx`, `tailwind-merge` to frontend; add `PRAGMA busy_timeout = 5000` to SQLite | Required for WCAG 2.2 AA non-color status icons and Windows multi-threaded DB concurrency |
 
 *Add a row for every decision, dependency, or deviation from PLAN.md, in the session it happens — including the outcome of each [VERIFY] item in M1.2.*
 

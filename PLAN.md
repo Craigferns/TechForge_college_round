@@ -2,7 +2,7 @@
 
 > **Status: PLANNING — awaiting approval.** No application code exists yet.
 > Plan v1.0 · 2026-10-10 · Companion files: [CLAUDE.md](CLAUDE.md) (how we work + live status) · [README.md](README.md) (public face).
-> Repo root = `C:\Users\alonso\Documents\Techforge` (currently empty, not yet a git repo; M1.1 runs `git init`).
+> Repo root = `C:\Users\alonso\Documents\Techforge` (Git initialized on branch `main`, remote `origin` = `https://github.com/Craigferns/TechForge_college_round`).
 
 ---
 
@@ -487,7 +487,7 @@ Inputs: target, base policy `P0`, fix `F`, attack corpus `X` (cases that succeed
 4. `attacks_blocked` = |{x ∈ X : success under P0 ∧ ¬success under P1}| (LLM: blocked only if 0 of N succeed).
 5. `tasks_broken` = |{b ∈ B : pass under P0 ∧ ¬pass under P1}| (baseline-relative, so weak models do not unfairly inflate it).
 6. Price tag = `(attacks_blocked / |X|, tasks_broken / |B|)`; keep per-case/per-task results and run ids.
-7. **Pareto flag:** a fix is *dominated* if another has `blocked ≥` and `broken ≤` with one strict. Non-dominated fixes are highlighted. **Do not** collapse to a single score.
+7. **Pareto flag:** A fix $F_1$ dominates $F_2$ ($F_1 \succ F_2$) using **set-based Pareto dominance**: $\text{Blocked}(F_2) \subseteq \text{Blocked}(F_1) \land \text{Broken}(F_1) \subseteq \text{Broken}(F_2)$ with at least one strict inclusion. This ensures fixes addressing distinct vulnerabilities (e.g. `delete_file` for AS-04 vs `set_role` for AS-06,07) do not falsely dominate one another, while strictly inferior alternatives (e.g., removing `send_email` breaking 4 tasks vs restricting `send_email` breaking 0 tasks for the identical blocked set) are correctly marked as dominated. Non-dominated fixes receive `pareto: true` and are highlighted with a badge in the UI. **Do not** collapse to a single scalar score.
 8. Sleeper case AS-05 counts as blocked when the **trigger** fails, even if the plant succeeded; the detail records which stage failed.
 
 ### 11.3 Apply and retest
@@ -571,7 +571,7 @@ Attacker LLM output is **data**: never executed, only placed into a sandbox vect
 
 ### 14.1 DDL (`backend/agentbreak/schema.sql`)
 ```sql
-PRAGMA foreign_keys = ON;  PRAGMA journal_mode = WAL;
+PRAGMA foreign_keys = ON;  PRAGMA journal_mode = WAL;  PRAGMA busy_timeout = 5000;
 
 CREATE TABLE policy (
   id TEXT PRIMARY KEY, name TEXT NOT NULL,
@@ -902,6 +902,8 @@ Techforge/
 | recharts | specified (severity bar, trend line, success gauge) |
 | react-router-dom | 7 routes with params |
 | react-markdown | render server-generated Markdown safely (single source of truth for the report) |
+| lucide-react | accessible UI icons (WCAG 2.2 non-color status indicators: Shield, Alert, Check, etc.) |
+| clsx, tailwind-merge | standard `cn()` utility for robust conditional class merges in UI primitives |
 | openapi-typescript (dev) | contract → types (D-14) |
 | vitest, @testing-library/react, jsdom (dev) | page smoke tests |
 | eslint + typescript-eslint + react-hooks plugin (dev) | lint |
@@ -918,7 +920,7 @@ Legend: **Size** S ≤ 3 files · M 4–8 files (split if it grows). **Depends**
 *Goal: toolchain works, AgentDojo behaves as assumed, the contract exists, and all 7 pages run on mock JSON.*
 
 **M1.1 Repo & tooling** · S · Depends: —
-- Do: `git init`; root `pyproject.toml` (uv, `requires-python >=3.11,<3.13`, deps §17.4, ruff/mypy/pytest config); `backend/agentbreak/{__init__,main,config}.py` with `GET /api/v1/health`; one smoke test; Vite React-TS app in `frontend/` with Tailwind, Recharts, router, vitest, eslint; `.gitignore`, `.gitattributes`, `.env.example`.
+- Do: root `pyproject.toml` (uv, `requires-python >=3.11,<3.13`, deps §17.4, ruff/mypy/pytest config); `backend/agentbreak/{__init__,main,config}.py` with `GET /api/v1/health`; one smoke test; Vite React-TS app in `frontend/` with Tailwind, Recharts, Lucide icons (`lucide-react`), `clsx`, `tailwind-merge`, router, vitest, eslint; `.gitignore`, `.gitattributes`, `.env.example`. (Note: git is already initialized on `main` with remote origin configured).
 - Done when: `uv sync` ok · `uv run pytest` → 1 passed · `uv run ruff check .` and `uv run mypy backend/agentbreak` clean · `uv run uvicorn agentbreak.main:app --port 8000` then `curl http://127.0.0.1:8000/api/v1/health` returns `{"status":"ok",…}` · in `frontend/`: `npm run build` and `npm test` pass.
 
 **M1.2 AgentDojo spike** · S · Depends: M1.1
@@ -1231,7 +1233,7 @@ Rules: (1) `conftest.py` blocks all sockets except localhost unless `@pytest.mar
 | V-07 | OpenAI-compatible local LLM element (`OpenAILLM(base_url=…)` or a `LocalLLM`) incl. tool-calling with Ollama | `PromptingLLM`, or a custom `BasePipelineElement` (~60 lines) |
 | V-08 | Minimal `BaseAttack` subclass contract + registration | skip registration; call our renderer directly |
 | V-09 | Building pipelines with a named `DEFENSE` without `from_config` | use `from_config` for `openai_compat` targets |
-| V-10 | `uv sync` of `agentdojo==0.1.35` on Windows/Python 3.11 with no compile step | pin an adjacent version or document prerequisites |
+| V-10 | `uv sync` of `agentdojo==0.1.35` on Windows/Python 3.11 with no compile step | **VERIFIED OK**: dry-run resolved 72 pure wheels in 2.3s, 0 compilation steps on Windows 11 / Python 3.11.9 |
 | V-11 | Tool env access via `Annotated[…, Depends("field")]` and the docstring format `make_function` requires | adapt `tools.py` to whatever the installed version demands |
 
 ### Appendix B — Environment variables (`.env.example`)
