@@ -81,8 +81,18 @@ export const RunDetailPage: React.FC = () => {
         <div>
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-bold text-white tracking-tight">Run Replay: {activeRunId}</h1>
-            <Badge variant="unauthorized">EXPLOITED</Badge>
-            <Badge variant="high">HIGH SEVERITY</Badge>
+            {run?.verdict?.success ? (
+              <Badge variant="unauthorized">EXPLOITED</Badge>
+            ) : run?.verdict ? (
+              <Badge variant="allowed">BLOCKED</Badge>
+            ) : (
+              <Badge variant="outline">{run?.status?.toUpperCase() ?? "LOADING"}</Badge>
+            )}
+            {run?.verdict?.severity && run.verdict.severity !== "none" && (
+              <Badge variant={run.verdict.severity === "critical" ? "critical" : "high"}>
+                {run.verdict.severity.toUpperCase()} SEVERITY
+              </Badge>
+            )}
           </div>
           <p className="text-xs text-slate-400 mt-1">
             Scenario: <span className="font-semibold text-slate-300">{run?.scenario_id}</span> ({run?.case_id}) · Carrier Task: {run?.user_task_id}
@@ -282,13 +292,20 @@ export const RunDetailPage: React.FC = () => {
         {/* Tab Content */}
         {activeTab === "diff" && snapshots && (
           <div className="space-y-4 py-2">
-            <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/30 text-xs text-red-300 flex items-center justify-between">
-              <span className="flex items-center gap-2">
-                <AlertOctagon className="w-4 h-4 text-red-400" />
-                <span>State Diff Detected: 1 file deleted in post-environment</span>
-              </span>
-              <Badge variant="unauthorized">P-DELETE: TRUE</Badge>
-            </div>
+            {snapshots.diff && snapshots.diff.length > 0 ? (
+              <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/30 text-xs text-red-300 flex items-center justify-between">
+                <span className="flex items-center gap-2">
+                  <AlertOctagon className="w-4 h-4 text-red-400 shrink-0" />
+                  <span>State Diff Detected: {snapshots.diff.map((d: Record<string, unknown>) => `${String(d.path)}: ${JSON.stringify(d.before)} → ${JSON.stringify(d.after)}`).join(", ")}</span>
+                </span>
+                <Badge variant="unauthorized">MODIFIED</Badge>
+              </div>
+            ) : (
+              <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 text-xs text-slate-400 flex items-center justify-between">
+                <span>No state mutations detected between PRE and POST environments.</span>
+                <Badge variant="outline">CLEAN</Badge>
+              </div>
+            )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-mono">
               <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
@@ -305,11 +322,74 @@ export const RunDetailPage: React.FC = () => {
 
         {activeTab === "graph" && graph && (
           <div className="py-6 flex flex-col items-center justify-center space-y-6">
-            <div className="flex flex-col sm:flex-row items-center gap-4">
+            {/* SVG visualization of the attack graph */}
+            <div className="w-full overflow-x-auto p-4 bg-slate-950 rounded-xl border border-slate-800">
+              <svg className="mx-auto min-w-[500px] h-28" viewBox="0 0 600 100">
+                <defs>
+                  <marker id="arrow" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                    <path d="M 0 0 L 10 5 L 0 10 z" fill="#10B981" />
+                  </marker>
+                </defs>
+                {graph.edges.map((edge, idx) => {
+                  const nodeCount = Math.max(graph.nodes.length, 1);
+                  const spacing = 500 / Math.max(nodeCount - 1, 1);
+                  const sourceIndex = graph.nodes.findIndex((n) => n.id === edge.source);
+                  const targetIndex = graph.nodes.findIndex((n) => n.id === edge.target);
+                  const x1 = 50 + (sourceIndex >= 0 ? sourceIndex : idx) * spacing;
+                  const x2 = 50 + (targetIndex >= 0 ? targetIndex : idx + 1) * spacing;
+                  return (
+                    <g key={`${edge.source}-${edge.target}-${idx}`}>
+                      <line
+                        x1={x1 + 35}
+                        y1={50}
+                        x2={x2 - 35}
+                        y2={50}
+                        stroke="#10B981"
+                        strokeWidth="2"
+                        strokeDasharray="4 2"
+                        markerEnd="url(#arrow)"
+                      />
+                      <text x={(x1 + x2) / 2} y={42} fill="#64748B" fontSize="9" textAnchor="middle" fontFamily="monospace">
+                        {edge.label}
+                      </text>
+                    </g>
+                  );
+                })}
+                {graph.nodes.map((node, i) => {
+                  const nodeCount = Math.max(graph.nodes.length, 1);
+                  const spacing = 500 / Math.max(nodeCount - 1, 1);
+                  const cx = 50 + i * spacing;
+                  const cy = 50;
+                  const color = node.type === "vector" ? "#F59E0B" : node.type === "tool" ? "#3B82F6" : "#EF4444";
+                  return (
+                    <g key={node.id}>
+                      <rect
+                        x={cx - 35}
+                        y={cy - 20}
+                        width="70"
+                        height="40"
+                        rx="8"
+                        fill="#0F172A"
+                        stroke={color}
+                        strokeWidth="1.5"
+                      />
+                      <text x={cx} y={cy - 5} fill="#94A3B8" fontSize="8" textAnchor="middle" fontFamily="sans-serif">
+                        {node.type.toUpperCase()}
+                      </text>
+                      <text x={cx} y={cy + 10} fill="#F8FAFC" fontSize="9" fontWeight="bold" textAnchor="middle" fontFamily="monospace">
+                        {node.label.length > 9 ? node.label.slice(0, 8) + "…" : node.label}
+                      </text>
+                    </g>
+                  );
+                })}
+              </svg>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-center gap-3">
               {graph.nodes.map((node: GraphNode, i: number) => (
                 <React.Fragment key={node.id}>
                   <div
-                    className={`p-4 rounded-xl border text-xs font-mono text-center shadow-md ${
+                    className={`p-3.5 rounded-xl border text-xs font-mono text-center shadow-md ${
                       node.type === "vector"
                         ? "bg-amber-500/10 border-amber-500/30 text-amber-300"
                         : node.type === "tool"

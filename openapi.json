@@ -1319,7 +1319,7 @@
           "findings"
         ],
         "summary": "List Findings",
-        "description": "List deduplicated vulnerability findings with severity filters.",
+        "description": "List deduplicated vulnerability findings with severity and scenario filters.",
         "operationId": "list_findings_api_v1_findings_get",
         "parameters": [
           {
@@ -1339,7 +1339,7 @@
             }
           },
           {
-            "name": "status_filter",
+            "name": "status",
             "in": "query",
             "required": false,
             "schema": {
@@ -1351,7 +1351,7 @@
                   "type": "null"
                 }
               ],
-              "title": "Status Filter"
+              "title": "Status"
             }
           },
           {
@@ -1478,7 +1478,7 @@
           "findings"
         ],
         "summary": "Update Finding",
-        "description": "Update status (open, acknowledged, fixed, dismissed) or notes on a finding.",
+        "description": "Update status (e.g. open, accepted_risk) on a finding.",
         "operationId": "update_finding_api_v1_findings__finding_id__patch",
         "parameters": [
           {

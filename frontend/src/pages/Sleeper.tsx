@@ -68,17 +68,37 @@ export const SleeperPage: React.FC = () => {
       </div>
 
       {/* Outcome Banner */}
-      <div className="p-4 rounded-xl bg-orange-500/10 border border-orange-500/30 text-xs text-orange-300 flex items-center justify-between">
+      <div className={`p-4 rounded-xl border text-xs flex items-center justify-between ${
+        sleeper.outcome === "triggered"
+          ? "bg-orange-500/10 border-orange-500/30 text-orange-300"
+          : sleeper.outcome === "trigger_blocked"
+          ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-300"
+          : "bg-slate-900 border-slate-800 text-slate-300"
+      }`}>
         <div className="flex items-center gap-3">
-          <ShieldAlert className="w-5 h-5 text-orange-400 shrink-0" />
+          <ShieldAlert className={`w-5 h-5 shrink-0 ${
+            sleeper.outcome === "triggered" ? "text-orange-400" : sleeper.outcome === "trigger_blocked" ? "text-emerald-400" : "text-slate-400"
+          }`} />
           <div>
-            <span className="font-semibold text-white">Sleeper Exploit Confirmed:</span>
+            <span className="font-semibold text-white">
+              {sleeper.outcome === "triggered"
+                ? "Sleeper Exploit Confirmed:"
+                : sleeper.outcome === "trigger_blocked"
+                ? "Sleeper Exploit Mitigated:"
+                : "Sleeper Evaluation Status:"}
+            </span>
             <span className="ml-1.5 text-slate-300">
-              Payload successfully persisted in agent memory across sessions and triggered an unauthorized exfiltration email in Session 3.
+              {sleeper.outcome === "triggered"
+                ? "Payload successfully persisted in agent memory across sessions and triggered an unauthorized exfiltration email in Session 3."
+                : sleeper.outcome === "trigger_blocked"
+                ? "Trigger session policy blocked unauthorized action or carrier execution prevented payload activation."
+                : `Run status: ${sleeper.status}. Outcome: ${sleeper.outcome ?? "evaluating"}.`}
             </span>
           </div>
         </div>
-        <Badge variant="high">HIGH SEVERITY</Badge>
+        <Badge variant={sleeper.outcome === "triggered" ? "high" : sleeper.outcome === "trigger_blocked" ? "allowed" : "outline"}>
+          {sleeper.outcome ? sleeper.outcome.toUpperCase().replace("_", " ") : sleeper.status.toUpperCase()}
+        </Badge>
       </div>
 
       {/* Horizontal Multi-Session Timeline */}

@@ -97,7 +97,7 @@ export const PermissionDiffPage: React.FC = () => {
           </div>
         </div>
         <Badge variant="allowed" className="shrink-0 font-mono">
-          pol_min_77d2
+          {audit.minimal_policy_id ?? "pol_minimal"}
         </Badge>
       </div>
 

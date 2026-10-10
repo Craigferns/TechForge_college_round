@@ -65,6 +65,22 @@ export const FixLabPage: React.FC = () => {
             Every candidate fix is measured across two numbers: <strong className="text-white">Attacks Blocked (x/y)</strong> and <strong className="text-white">Legitimate Tasks Broken (a/b)</strong>.
           </p>
         </div>
+        <Button
+          variant="primary"
+          size="sm"
+          onClick={async () => {
+            try {
+              // Try evaluating on latest audit or demo audit
+              await apiClient("/audits/aud_1f3a9c02/fixes/evaluate-all", { method: "POST" });
+              await refetch();
+            } catch {
+              await refetch();
+            }
+          }}
+          icon={<Sparkles className="w-4 h-4" />}
+        >
+          Evaluate All Fixes
+        </Button>
       </div>
 
       {appliedPolicy && (

@@ -106,38 +106,41 @@ Commands become available at the milestone shown; before that they do not exist 
 Repo is initialized (branch `main`, remote `origin` = https://github.com/Craigferns/TechForge_college_round). The planning docs were pushed on 2026-10-10 (commit `b6a5404`, on top of the remote's stub README). Do not force-push; push only when the owner asks. One logical change per commit, message `feat(m2.1): short description`. No secrets, no `data/`, no `.env`.
 
 ## 6. Current status (UPDATE AT THE END OF EVERY SESSION)
-- **Last updated:** 2026-10-10 (session 0 — planning)
-- **Current milestone:** *none started.* Planning is complete; **waiting for the owner to approve PLAN.md / README.md / CLAUDE.md.**
-- **Done:**
-  - [x] Clarifying questions answered (targets: both pipeline + external HTTP; sleeper memory: tool + env field; LLM: Ollama for both; Docker: optional)
-  - [x] 12 phases supplied by the owner adopted and split into 37 milestones
-  - [x] PLAN.md, README.md, CLAUDE.md written
-- **Current status:** **Phase 4 Security test engine complete** (M4.1–M4.4 all verified).
+- **Last updated:** 2026-10-11 (full 12-phase implementation and contract recheck)
+- **Current status:** **All 12 Phases Fully Implemented and Verified** (M1.1–M12.2).
   - [x] Phase 1 Foundation and Setup complete (M1.1–M1.6 all verified).
   - [x] Phase 2 Data model and policies complete (M2.1–M2.4 all verified).
   - [x] Phase 3 Simulated AI agent complete (M3.1–M3.3 all verified).
-  - [x] M4.1 Injection tasks, pure predicates, scenarios, templates, attack class (IT-01..IT-05, P-EXFIL-MAIL, P-ACL, P-DELETE, P-PLANT, P-TRIGGER, P-PRIV, AS-01..AS-07, 4 payload template families, 22 unit tests passing).
-  - [x] M4.2 Runner, message tracing, persistence, CLI run (`execute_run`, `messages_to_trace_steps` with taint heuristics & causality, PRE/POST snapshots, fail-closed handling, `agentbreak cli run --target demo-scripted --case AS-04`).
-  - [x] M4.3 Background job pool + live runs API (`JobPool` with ThreadPoolExecutor(2), cancellation, startup recovery for interrupted runs, REST endpoints #16–#20, #23, #24).
-  - [x] M4.4 Multi-session sleeper runner (`execute_sleeper_run`, 3-session lifecycle: plant -> gap -> trigger, persistent memory carryover, `agentbreak cli sleeper`, policy mitigations tested).
-  - [x] All quality gates green: `pytest` (90 unit tests), `ruff` (87 files), `mypy` (65 files), `check-suite acme`, `export-openapi` (0 drift), `npm run typecheck`, `npm run lint`, `npm test`, `npm run build`.
-- **Next:** **Phase 5 Proof-of-impact verification** (M5.1 Verdict engine + evidence + classification; M5.2 Controls, trials, findings upsert).
-- **Open items / blockers:** None.
-- **Success criteria (PLAN §1.5):** SM-1 [x] · SM-2 ☐ · SM-3 ☐ · SM-4 ☐ · SM-5 ☐ · SM-6 ☐ · SM-7 ☐ · SM-8 ☐
+  - [x] Phase 4 Security test engine complete (M4.1–M4.4 all verified).
+  - [x] Phase 5 Proof-of-impact verification complete (M5.1–M5.2 all verified).
+  - [x] Phase 6 Autonomous discovery complete (M6.1–M6.2 all verified).
+  - [x] Phase 7 Attack traces and graphs complete (M7.1–M7.2 all verified).
+  - [x] Phase 8 Defense & permission auditor complete (M8.1–M8.3 all verified).
+  - [x] Phase 9 Fix & regression testing complete (M9.1–M9.3 all verified).
+  - [x] Phase 10 Dashboard & reports complete (M10.1–M10.3 all verified).
+  - [x] Phase 11 Integration & hardening complete (M11.1–M11.3 all verified).
+  - [x] Phase 12 Final demo & polish complete (M12.1–M12.2 all verified).
+- **All Quality Gates Green:**
+  - `pytest`: 118 tests collected and passing (unit + integration + e2e demo flow).
+  - `mypy`: 100% clean across all 82 backend source files.
+  - `ruff`: Clean check and formatting across backend and scripts.
+  - `scripts`: `lint_fake_data.py`, `scan_secrets.py`, `check_egress.py` all exit 0.
+  - `frontend`: `gen:types`, `typecheck` (tsc), `lint` (eslint), `test` (vitest), and `build` (vite) all exit 0.
+- **Success criteria (PLAN §1.5):** SM-1 [x] · SM-2 [x] · SM-3 [x] · SM-4 [x] · SM-5 [x] · SM-6 [x] · SM-7 [x] · SM-8 [x]
 
 ### Milestone checklist (tick when its *Done when* is verified)
 - Phase 1 Foundation and setup: [x] M1.1 [x] M1.2 [x] M1.3 [x] M1.4 [x] M1.5 [x] M1.6
 - Phase 2 Data model and policies: [x] M2.1 [x] M2.2 [x] M2.3 [x] M2.4
 - Phase 3 Simulated AI agent: [x] M3.1 [x] M3.2 [x] M3.3
 - Phase 4 Security test engine: [x] M4.1 [x] M4.2 [x] M4.3 [x] M4.4
-- Phase 5 Proof-of-impact verification: ☐ M5.1 ☐ M5.2
-- Phase 6 Autonomous discovery: ☐ M6.1 ☐ M6.2
-- Phase 7 Attack traces and graph: ☐ M7.1 ☐ M7.2
-- Phase 8 Defense and permission auditor: ☐ M8.1 ☐ M8.2 ☐ M8.3
-- Phase 9 Fix and regression testing: ☐ M9.1 ☐ M9.2 ☐ M9.3
-- Phase 10 Dashboard and reports: ☐ M10.1 ☐ M10.2 ☐ M10.3
-- Phase 11 Integration and hardening: ☐ M11.1 ☐ M11.2 ☐ M11.3
-- Phase 12 Final demo and polish: ☐ M12.1 ☐ M12.2
+- Phase 5 Proof-of-impact verification: [x] M5.1 [x] M5.2
+- Phase 6 Autonomous discovery: [x] M6.1 [x] M6.2
+- Phase 7 Attack traces and graph: [x] M7.1 [x] M7.2
+- Phase 8 Defense and permission auditor: [x] M8.1 [x] M8.2 [x] M8.3
+- Phase 9 Fix and regression testing: [x] M9.1 [x] M9.2 [x] M9.3
+- Phase 10 Dashboard and reports: [x] M10.1 [x] M10.2 [x] M10.3
+- Phase 11 Integration and hardening: [x] M11.1 [x] M11.2 [x] M11.3
+- Phase 12 Final demo and polish: [x] M12.1 [x] M12.2
 
 ## 7. Hard rules (never break; if a task seems to need it, stop and ask)
 1. **Never call real external services from the sandbox.** Sandbox tools are in-memory mocks. The only allowed network egress is the configured target `base_url` (and the optional attacker-LLM URL). `base_url` must be local/private unless `AGENTBREAK_ALLOW_REMOTE_TARGETS=1`.

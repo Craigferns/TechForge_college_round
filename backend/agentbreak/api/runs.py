@@ -11,6 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from agentbreak.api.deps import get_db
 from agentbreak.attacks.scenarios import get_attack_case
 from agentbreak.attacks.templates import DEFAULT_TEMPLATE_ID, render_payload
+from agentbreak.domain.verdict import evaluate
 from agentbreak.engine.jobs import get_job_pool
 from agentbreak.engine.runner import utc_now_iso
 from agentbreak.repo.policy_repo import PolicyRepo
@@ -56,6 +57,7 @@ def create_runs(body: RunCreate, db: DbDep) -> dict[str, list[str]]:
 
     created_runs: list[Run] = []
     job_pool = get_job_pool()
+    batch_id = f"batch_{uuid.uuid4().hex[:12]}"
 
     # 2. Enumerate trials
     for trial_idx in range(body.trials):
@@ -102,6 +104,8 @@ def create_runs(body: RunCreate, db: DbDep) -> dict[str, list[str]]:
                     "case_id": case.id,
                     "seed": seed_val,
                     "trial": trial_idx,
+                    "trials": body.trials,
+                    "batch_id": batch_id,
                 },
                 created_at=utc_now_iso(),
             )
@@ -133,6 +137,8 @@ def create_runs(body: RunCreate, db: DbDep) -> dict[str, list[str]]:
                         "case_id": case.id,
                         "is_control": True,
                         "trial": trial_idx,
+                        "trials": body.trials,
+                        "batch_id": batch_id,
                     },
                     created_at=utc_now_iso(),
                 )
@@ -260,7 +266,18 @@ def get_run_snapshots(run_id: str, db: DbDep) -> SnapshotPair:
 @router.get("/{run_id}/graph", response_model=AttackGraph)
 def get_run_graph(run_id: str, db: DbDep) -> AttackGraph:
     """Retrieve causal attack graph connecting attack vector to exploit effect."""
-    raise HTTPException(status_code=status.HTTP_501_NOT_IMPLEMENTED, detail="Endpoint stub")
+    from agentbreak.domain.graph import build_run_attack_graph
+
+    repo = RunRepo(db)
+    run = repo.get(run_id)
+    if not run:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Run '{run_id}' not found.",
+        )
+    trace = repo.get_trace(run_id)
+    verdict = repo.get_verdict(run_id)
+    return build_run_attack_graph(run=run, trace_steps=trace, verdict=verdict)
 
 
 @router.post("/{run_id}/verify", response_model=Verdict)
@@ -273,13 +290,41 @@ def verify_run(run_id: str, db: DbDep) -> Verdict:
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Run '{run_id}' not found.",
         )
-    verdict = repo.get_verdict(run_id)
-    if not verdict:
+    stored_verdict = repo.get_verdict(run_id)
+    if not stored_verdict:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Verdict for run '{run_id}' not found.",
         )
-    return verdict
+    snapshots = repo.get_snapshots(run_id)
+    if not snapshots:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Snapshots for run '{run_id}' not found.",
+        )
+
+    claims_action = stored_verdict.classification == "said_not_did"
+    case_id = run.case_id or "AS-01"
+    recomputed = evaluate(
+        case_id=case_id,
+        pre=snapshots.pre,
+        post=snapshots.post,
+        claims_action=claims_action,
+        now_iso=stored_verdict.created_at,
+    )
+    matches = recomputed.verdict_hash == stored_verdict.verdict_hash
+
+    return Verdict(
+        success=recomputed.success,
+        classification=recomputed.classification,
+        impact_class=recomputed.impact_class,
+        severity=recomputed.severity,
+        evidence=recomputed.evidence,
+        verifier_version=recomputed.verifier_version,
+        verdict_hash=recomputed.verdict_hash,
+        created_at=recomputed.created_at,
+        matches_stored=matches,
+    )
 
 
 @router.post("/{run_id}/cancel", response_model=Run)

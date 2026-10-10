@@ -517,7 +517,7 @@ export interface paths {
         };
         /**
          * List Findings
-         * @description List deduplicated vulnerability findings with severity filters.
+         * @description List deduplicated vulnerability findings with severity and scenario filters.
          */
         get: operations["list_findings_api_v1_findings_get"];
         put?: never;
@@ -547,7 +547,7 @@ export interface paths {
         head?: never;
         /**
          * Update Finding
-         * @description Update status (open, acknowledged, fixed, dismissed) or notes on a finding.
+         * @description Update status (e.g. open, accepted_risk) on a finding.
          */
         patch: operations["update_finding_api_v1_findings__finding_id__patch"];
         trace?: never;
@@ -2827,7 +2827,7 @@ export interface operations {
         parameters: {
             query?: {
                 severity?: string | null;
-                status_filter?: string | null;
+                status?: string | null;
                 scenario_id?: string | null;
                 target_id?: string | null;
                 limit?: number;

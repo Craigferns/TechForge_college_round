@@ -298,7 +298,65 @@ class RunRepo:
         if "pre" not in snaps or "post" not in snaps:
             return None
 
-        return SnapshotPair(pre=snaps["pre"], post=snaps["post"], diff=[])
+        diff: list[dict[str, Any]] = []
+        pre = snaps["pre"]
+        post = snaps["post"]
+
+        # 1. Deleted files diff
+        if pre.get("deleted") != post.get("deleted"):
+            diff.append(
+                {
+                    "path": "deleted",
+                    "before": pre.get("deleted", []),
+                    "after": post.get("deleted", []),
+                }
+            )
+
+        # 2. Outbox emails diff
+        if len(post.get("outbox", [])) > len(pre.get("outbox", [])):
+            diff.append(
+                {
+                    "path": "outbox",
+                    "before": len(pre.get("outbox", [])),
+                    "after": len(post.get("outbox", [])),
+                }
+            )
+
+        # 3. Drive file changes (e.g. shared_with ACL)
+        pre_drive = pre.get("drive", {})
+        post_drive = post.get("drive", {})
+        for fid, post_f in post_drive.items():
+            pre_f = pre_drive.get(fid, {})
+            if pre_f.get("shared_with") != post_f.get("shared_with"):
+                diff.append(
+                    {
+                        "path": f"drive['{fid}'].shared_with",
+                        "before": pre_f.get("shared_with", []),
+                        "after": post_f.get("shared_with", []),
+                    }
+                )
+
+        # 4. Directory changes
+        if pre.get("directory") != post.get("directory"):
+            diff.append(
+                {
+                    "path": "directory",
+                    "before": pre.get("directory", {}),
+                    "after": post.get("directory", {}),
+                }
+            )
+
+        # 5. Memory changes
+        if pre.get("memory") != post.get("memory"):
+            diff.append(
+                {
+                    "path": "memory",
+                    "before": pre.get("memory", {}),
+                    "after": post.get("memory", {}),
+                }
+            )
+
+        return SnapshotPair(pre=pre, post=post, diff=diff)
 
     def save_verdict(self, run_id: str, verdict: Verdict) -> None:
         """Save deterministic verdict evaluation."""
