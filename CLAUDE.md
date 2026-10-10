@@ -103,7 +103,7 @@ Commands become available at the milestone shown; before that they do not exist 
 - Tests colocated as `*.test.tsx`; every page has a smoke render test in mock mode.
 
 ### Git
-Repo is not initialized until M1.1 (`git init`). One logical change per commit, message `feat(m2.1): short description`. No secrets, no `data/`, no `.env`.
+Repo is initialized (branch `main`, remote `origin` = https://github.com/Craigferns/TechForge_college_round). The planning docs were pushed on 2026-10-10 (commit `b6a5404`, on top of the remote's stub README). Do not force-push; push only when the owner asks. One logical change per commit, message `feat(m2.1): short description`. No secrets, no `data/`, no `.env`.
 
 ## 6. Current status (UPDATE AT THE END OF EVERY SESSION)
 - **Last updated:** 2026-10-10 (session 0 — planning)
@@ -114,6 +114,7 @@ Repo is not initialized until M1.1 (`git init`). One logical change per commit, 
   - [x] PLAN.md, README.md, CLAUDE.md written
   - [x] Toolchain checked (versions in §3); AgentDojo docs reviewed (PLAN Appendix A)
   - [x] Idea Council run → **FIX FIRST** (PLAN §2)
+  - [x] Docs pushed to GitHub `Craigferns/TechForge_college_round` `main` (commit `b6a5404`)
 - **Next (after approval):** **M1.1 Repo & tooling**, then M1.2 (AgentDojo spike — resolves V-01…V-11), M1.3 (contract + mocks).
 - **Open items / blockers:**
   - All [VERIFY] items V-01…V-11 unresolved (M1.2 closes them).
