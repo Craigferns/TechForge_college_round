@@ -66,6 +66,22 @@ def check_suite(suite_name: str) -> None:
         sys.exit(1)
 
 
+def seed_cmd() -> None:
+    """Seed benchmark targets and default policies into SQLite."""
+    from agentbreak.config import get_settings
+    from agentbreak.db import get_connection, migrate
+    from agentbreak.seed import seed_database
+
+    settings = get_settings()
+    conn = get_connection(settings.db_path)
+    migrate(conn)
+    p_count, t_count = seed_database(conn)
+    print(
+        f"Database seeded successfully ({settings.db_path}): "
+        f"seeded {p_count} new policies, {t_count} new targets."
+    )
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="AgentBreak CLI")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -92,12 +108,16 @@ def main() -> None:
         help="Suite identifier (default: acme)",
     )
 
+    subparsers.add_parser("seed", help="Seed default targets and security policies")
+
     args = parser.parse_args()
 
     if args.command == "export-openapi":
         export_openapi(args.output)
     elif args.command == "check-suite":
         check_suite(args.suite)
+    elif args.command == "seed":
+        seed_cmd()
     else:
         parser.print_help()
         sys.exit(1)

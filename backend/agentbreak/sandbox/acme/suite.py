@@ -6,12 +6,13 @@ from agentdojo.functions_runtime import FunctionsRuntime
 from agentdojo.task_suite import BaseUserTask, TaskSuite
 
 from agentbreak.sandbox.acme.env import AcmeEnv
+from agentbreak.sandbox.acme.injection_tasks import ALL_INJECTION_TASKS
 from agentbreak.sandbox.acme.tools import get_acme_tools
 from agentbreak.sandbox.acme.user_tasks import ALL_BENIGN_TASKS
 
 
 def create_acme_suite() -> TaskSuite[AcmeEnv]:
-    """Assemble and configure the full Acme TaskSuite with tools and benign tasks."""
+    """Assemble and configure the full Acme TaskSuite with tools, benign tasks, and injection tasks."""
     tools = get_acme_tools()
     suite = TaskSuite[AcmeEnv](
         name="acme",
@@ -20,6 +21,9 @@ def create_acme_suite() -> TaskSuite[AcmeEnv]:
     )
     for task_cls in ALL_BENIGN_TASKS:
         suite.register_user_task(task_cls)
+
+    for inj_cls in ALL_INJECTION_TASKS:
+        suite.register_injection_task(inj_cls)
 
     return suite
 

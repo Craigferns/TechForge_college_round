@@ -76,5 +76,10 @@ module = "agentdojo.*"
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
-module = "agentbreak.sandbox.acme.user_tasks"
+module = [
+    "agentbreak.sandbox.acme.user_tasks",
+    "agentbreak.sandbox.acme.injection_tasks",
+    "agentbreak.sandbox.policy_runtime",
+    "agentbreak.targets.scripted",
+]
 disable_error_code = ["misc"]

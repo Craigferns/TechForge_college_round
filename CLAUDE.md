@@ -112,21 +112,21 @@ Repo is initialized (branch `main`, remote `origin` = https://github.com/Craigfe
   - [x] Clarifying questions answered (targets: both pipeline + external HTTP; sleeper memory: tool + env field; LLM: Ollama for both; Docker: optional)
   - [x] 12 phases supplied by the owner adopted and split into 37 milestones
   - [x] PLAN.md, README.md, CLAUDE.md written
-- **Current status:** **Phase 2 Data model and policies complete** (M2.1–M2.4 all verified).
+- **Current status:** **Phase 3 Simulated AI agent complete** (M3.1–M3.3 all verified).
   - [x] Phase 1 Foundation and Setup complete (M1.1–M1.6 all verified).
-  - [x] M2.1 SQLite persistence layer (`schema.sql` 15 tables, `db.py`, `TargetRepo`, `PolicyRepo`, `RunRepo`, cascade & migration tests).
-  - [x] M2.2 Policy domain & runtime (`compute_policy_hash` SHA-256 canonical ordering, `diff_policies`, `PolicyRuntime` interposition layer, permission taxonomy).
-  - [x] M2.3 Acme sandbox environment & tools (`AcmeEnv` in-memory dataclass, 10 mock tools with AgentDojo `:param` docstrings, synthetic data linter with `.test` domains and canary regex).
-  - [x] M2.4 Benign tasks & suite integrity (`UserTask1`..`UserTask10` / BT-01..BT-10 with ground-truth utility, `cli.py check-suite acme` passing 10/10 with 8 needed tools).
-  - [x] All quality gates green: `pytest` (31 unit tests), `ruff`, `mypy` (44 files), `check-suite acme`, `lint_fake_data.py`, `npm run typecheck`, `npm run lint`, `npm test`, `npm run build`.
-- **Next:** **Phase 3 Simulated AI agent** (M3.1 Scripted simulated agent with honest/vulnerable/defended modes, M3.2 Target interface & OpenAI-compatible adapter, M3.3 CLI `test-target`).
+  - [x] Phase 2 Data model and policies complete (M2.1–M2.4 all verified).
+  - [x] M3.1 Target interface, `ScriptedAgent`, `run_once` (BaseTarget, ScriptedTarget, pure `run_once`, 10/10 benign ground-truth utility verified with determinism).
+  - [x] M3.2 OpenAI-compatible adapter & provider probe (`OpenAICompatTarget`, `probe_target` with fast timeout < 5s and tool_calls capability detection, dynamic `api_key_env`).
+  - [x] M3.3 Targets + suite info API (endpoints for `/targets`, `/suites/acme`, `/policies`, `/scenarios`, `/attack-cases`, `seed.py`, `agentbreak cli seed`).
+  - [x] All quality gates green: `pytest` (55 unit tests), `ruff` (72 files), `mypy` (55 files), `check-suite acme`, `lint_fake_data.py`, `npm run typecheck`, `npm run lint`, `npm test`, `npm run build`.
+- **Next:** **Phase 4 Security test engine** (M4.1 Injection tasks, predicates, scenarios, templates; M4.2 Runner, tracing, persistence; M4.3 Job pool + runs API; M4.4 Sleeper runner).
 - **Open items / blockers:** None. Ready for remote push.
 - **Success criteria (PLAN §1.5):** SM-1 ☐ · SM-2 ☐ · SM-3 ☐ · SM-4 ☐ · SM-5 ☐ · SM-6 ☐ · SM-7 ☐ · SM-8 ☐
 
 ### Milestone checklist (tick when its *Done when* is verified)
 - Phase 1 Foundation and setup: [x] M1.1 [x] M1.2 [x] M1.3 [x] M1.4 [x] M1.5 [x] M1.6
 - Phase 2 Data model and policies: [x] M2.1 [x] M2.2 [x] M2.3 [x] M2.4
-- Phase 3 Simulated AI agent: ☐ M3.1 ☐ M3.2 ☐ M3.3
+- Phase 3 Simulated AI agent: [x] M3.1 [x] M3.2 [x] M3.3
 - Phase 4 Security test engine: ☐ M4.1 ☐ M4.2 ☐ M4.3 ☐ M4.4
 - Phase 5 Proof-of-impact verification: ☐ M5.1 ☐ M5.2
 - Phase 6 Autonomous discovery: ☐ M6.1 ☐ M6.2
@@ -181,6 +181,7 @@ Repo is initialized (branch `main`, remote `origin` = https://github.com/Craigfe
 | 2026-10-10 | Phase 1 completed: agentdojo spike verified V-01..V-11; Pydantic v2 contract + 51 API stubs; openapi.json generated; React 18 + Vite + Tailwind + Framer Motion frontend with all 7 screens built against mock fixtures (`VITE_API_MODE=mock`); all quality gates passing (pytest, ruff, mypy, tsc, eslint, vitest, vite build) | Milestones M1.1 through M1.6 verified; demo ready for user inspection before remote push |
 | 2026-10-10 | DEFENSES imported from `agentdojo.agent_pipeline.agent_pipeline` (resolves V-09); task suite custom injection helper used for acme (resolves V-06) | Confirmed via live inspection of installed `agentdojo==0.1.35` wheel |
 | 2026-10-10 | Phase 2 completed: SQLite WAL schema + repositories (TargetRepo, PolicyRepo, RunRepo); deterministic SHA-256 canonical policy hashing; PolicyRuntime interposition wrapper; AcmeEnv sandbox with 10 tools, .test safety linter, and 10 benign tasks (UserTask1..10) passing ground-truth utility with exact 8 needed tools | Milestones M2.1 through M2.4 verified; all 31 backend unit tests, mypy, ruff, and frontend checks passing |
+| 2026-10-10 | Phase 3 completed: unified BaseTarget interface; deterministic ScriptedAgent and ScriptedTarget (10/10 benign ground truth passing, hash-equal determinism); pure run_once loop; OpenAICompatTarget adapter with dynamic api_key_env and < 5s probe_target tool-calling validation; active REST APIs for targets, suites, scenarios, attack-cases, policies; seed.py and cli seed | Milestones M3.1 through M3.3 verified; 55 backend unit tests, mypy, ruff, and frontend checks passing |
 
 *Add a row for every decision, dependency, or deviation from PLAN.md, in the session it happens — including the outcome of each [VERIFY] item in M1.2.*
 
