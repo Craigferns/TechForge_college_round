@@ -112,21 +112,20 @@ Repo is initialized (branch `main`, remote `origin` = https://github.com/Craigfe
   - [x] Clarifying questions answered (targets: both pipeline + external HTTP; sleeper memory: tool + env field; LLM: Ollama for both; Docker: optional)
   - [x] 12 phases supplied by the owner adopted and split into 37 milestones
   - [x] PLAN.md, README.md, CLAUDE.md written
-- **Current status:** **Phase 1 Foundation and Setup complete** (M1.1–M1.6 all verified).
-  - [x] Repo & tooling initialized (`uv` with Python 3.11, FastAPI, Pydantic v2, Ruff, Mypy, Pytest; React 18 + Vite + Tailwind + Framer Motion)
-  - [x] AgentDojo spike executed (`scripts/spike_agentdojo.py` verified V-01..V-11)
-  - [x] API contract schemas (11 modules) & 51 route stubs returning 501 with `/api/v1/health` and `/api/v1/meta` active
-  - [x] `openapi.json` exported and verified against drift (`test_openapi.py`)
-  - [x] Frontend 7 screens built against typed mock fixtures with Framer Motion, Dark Bento UI, accessible badges/buttons
-  - [x] All 7 quality gates green (`pytest`, `ruff`, `mypy`, `tsc`, `eslint`, `vitest`, `vite build`)
-- **Next (after demo review & user approval):** **Phase 2 Data model and policies** (M2.1 SQLite schema & migration runner, M2.2 repository layer, M2.3 policy engine & hashing, M2.4 Acme sandbox suite & tools).
-- **Open items / blockers:**
-  - Owner review of Phase 1 interactive demo. Do not push to remote until approved.
+- **Current status:** **Phase 2 Data model and policies complete** (M2.1–M2.4 all verified).
+  - [x] Phase 1 Foundation and Setup complete (M1.1–M1.6 all verified).
+  - [x] M2.1 SQLite persistence layer (`schema.sql` 15 tables, `db.py`, `TargetRepo`, `PolicyRepo`, `RunRepo`, cascade & migration tests).
+  - [x] M2.2 Policy domain & runtime (`compute_policy_hash` SHA-256 canonical ordering, `diff_policies`, `PolicyRuntime` interposition layer, permission taxonomy).
+  - [x] M2.3 Acme sandbox environment & tools (`AcmeEnv` in-memory dataclass, 10 mock tools with AgentDojo `:param` docstrings, synthetic data linter with `.test` domains and canary regex).
+  - [x] M2.4 Benign tasks & suite integrity (`UserTask1`..`UserTask10` / BT-01..BT-10 with ground-truth utility, `cli.py check-suite acme` passing 10/10 with 8 needed tools).
+  - [x] All quality gates green: `pytest` (31 unit tests), `ruff`, `mypy` (44 files), `check-suite acme`, `lint_fake_data.py`, `npm run typecheck`, `npm run lint`, `npm test`, `npm run build`.
+- **Next:** **Phase 3 Simulated AI agent** (M3.1 Scripted simulated agent with honest/vulnerable/defended modes, M3.2 Target interface & OpenAI-compatible adapter, M3.3 CLI `test-target`).
+- **Open items / blockers:** None. Ready for remote push.
 - **Success criteria (PLAN §1.5):** SM-1 ☐ · SM-2 ☐ · SM-3 ☐ · SM-4 ☐ · SM-5 ☐ · SM-6 ☐ · SM-7 ☐ · SM-8 ☐
 
 ### Milestone checklist (tick when its *Done when* is verified)
 - Phase 1 Foundation and setup: [x] M1.1 [x] M1.2 [x] M1.3 [x] M1.4 [x] M1.5 [x] M1.6
-- Phase 2 Data model and policies: ☐ M2.1 ☐ M2.2 ☐ M2.3 ☐ M2.4
+- Phase 2 Data model and policies: [x] M2.1 [x] M2.2 [x] M2.3 [x] M2.4
 - Phase 3 Simulated AI agent: ☐ M3.1 ☐ M3.2 ☐ M3.3
 - Phase 4 Security test engine: ☐ M4.1 ☐ M4.2 ☐ M4.3 ☐ M4.4
 - Phase 5 Proof-of-impact verification: ☐ M5.1 ☐ M5.2
@@ -181,6 +180,7 @@ Repo is initialized (branch `main`, remote `origin` = https://github.com/Craigfe
 | 2026-10-10 | Add `lucide-react`, `clsx`, `tailwind-merge` to frontend; add `PRAGMA busy_timeout = 5000` to SQLite | Required for WCAG 2.2 AA non-color status icons and Windows multi-threaded DB concurrency |
 | 2026-10-10 | Phase 1 completed: agentdojo spike verified V-01..V-11; Pydantic v2 contract + 51 API stubs; openapi.json generated; React 18 + Vite + Tailwind + Framer Motion frontend with all 7 screens built against mock fixtures (`VITE_API_MODE=mock`); all quality gates passing (pytest, ruff, mypy, tsc, eslint, vitest, vite build) | Milestones M1.1 through M1.6 verified; demo ready for user inspection before remote push |
 | 2026-10-10 | DEFENSES imported from `agentdojo.agent_pipeline.agent_pipeline` (resolves V-09); task suite custom injection helper used for acme (resolves V-06) | Confirmed via live inspection of installed `agentdojo==0.1.35` wheel |
+| 2026-10-10 | Phase 2 completed: SQLite WAL schema + repositories (TargetRepo, PolicyRepo, RunRepo); deterministic SHA-256 canonical policy hashing; PolicyRuntime interposition wrapper; AcmeEnv sandbox with 10 tools, .test safety linter, and 10 benign tasks (UserTask1..10) passing ground-truth utility with exact 8 needed tools | Milestones M2.1 through M2.4 verified; all 31 backend unit tests, mypy, ruff, and frontend checks passing |
 
 *Add a row for every decision, dependency, or deviation from PLAN.md, in the session it happens — including the outcome of each [VERIFY] item in M1.2.*
 

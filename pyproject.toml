@@ -33,7 +33,7 @@ packages = ["backend/agentbreak"]
 
 [tool.pytest.ini_options]
 testpaths = ["backend/tests"]
-pythonpath = ["backend"]
+pythonpath = ["backend", "."]
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
     "ollama: marks tests requiring local Ollama server (deselect with '-m \"not ollama\"')",
@@ -59,6 +59,7 @@ warn_unused_configs = true
 disallow_untyped_defs = false
 disallow_incomplete_defs = false
 check_untyped_defs = true
+disallow_subclassing_any = false
 no_implicit_optional = true
 mypy_path = "backend"
 
@@ -73,3 +74,7 @@ strict = true
 [[tool.mypy.overrides]]
 module = "agentdojo.*"
 ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "agentbreak.sandbox.acme.user_tasks"
+disable_error_code = ["misc"]

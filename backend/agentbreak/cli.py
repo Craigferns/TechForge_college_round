@@ -19,6 +19,53 @@ def export_openapi(output_path: Path) -> None:
     print(f"OpenAPI schema successfully exported to {output_path}")
 
 
+def check_suite(suite_name: str) -> None:
+    """Validate benign ground truths and vector exposures for a test suite."""
+    if suite_name != "acme":
+        print(f"Error: Unknown suite '{suite_name}'. Supported suites: acme")
+        sys.exit(1)
+
+    from agentbreak.sandbox.acme.suite import (
+        compute_needed_permissions,
+        evaluate_task_ground_truth,
+    )
+    from agentbreak.sandbox.acme.user_tasks import ALL_BENIGN_TASKS
+
+    print("=" * 70)
+    print(f"AGENTBREAK SUITE INTEGRITY CHECK: {suite_name.upper()}")
+    print("=" * 70)
+
+    vector_exposures = {
+        "BT-01": "inj_email_body (e-1003)",
+        "BT-08": "inj_doc_content (f-004)",
+        "BT-10": "inj_email_body (e-1003)",
+    }
+
+    passed_count = 0
+    for task_cls in ALL_BENIGN_TASKS:
+        task_id = getattr(task_cls, "BENIGN_ID", task_cls.ID)
+        passed, msg = evaluate_task_ground_truth(task_cls)
+        vector_str = (
+            f" | Exposes: {vector_exposures[task_id]}" if task_id in vector_exposures else ""
+        )
+        if passed:
+            passed_count += 1
+            print(f"  [PASS] {task_id:6} utility=True {vector_str}")
+        else:
+            print(f"  [FAIL] {task_id:6} utility=False ({msg})")
+
+    needed = sorted(compute_needed_permissions())
+    print("=" * 70)
+    print(
+        f"Result: {passed_count}/{len(ALL_BENIGN_TASKS)} benign ground truths passed with utility=True"
+    )
+    print(f"Computed Needed Tools ({len(needed)} tools): {', '.join(needed)}")
+    print("=" * 70)
+
+    if passed_count != len(ALL_BENIGN_TASKS):
+        sys.exit(1)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="AgentBreak CLI")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -34,10 +81,23 @@ def main() -> None:
         help="Target output file path",
     )
 
+    suite_parser = subparsers.add_parser(
+        "check-suite", help="Validate benchmark suite benign tasks and tools"
+    )
+    suite_parser.add_argument(
+        "suite",
+        type=str,
+        default="acme",
+        nargs="?",
+        help="Suite identifier (default: acme)",
+    )
+
     args = parser.parse_args()
 
     if args.command == "export-openapi":
         export_openapi(args.output)
+    elif args.command == "check-suite":
+        check_suite(args.suite)
     else:
         parser.print_help()
         sys.exit(1)
