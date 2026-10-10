@@ -1,141 +1,285 @@
-# Phase 1: Foundation and Setup — Contributor Guide
+# Phase 1: Foundation and Setup — Architectural & Contributor Guide
 
-> **Phase Status:** Complete (M1.1 through M1.6 fully implemented, verified, and quality-gated).
-> **Scope Boundary:** Phase 1 establishes the dual-stack development foundation, verifies all AgentDojo sandbox assumptions, freezes the OpenAPI contract, and renders all 7 interactive UI screens against typed mock JSON fixtures.
+> **Phase Status:** Complete (Milestones M1.1 through M1.6 fully implemented, verified, and quality-gated).  
+> **Scope Boundary:** Phase 1 establishes the dual-stack development foundation (FastAPI backend + Vite/React frontend), validates all AgentDojo sandbox assumptions via a rigorous spike, freezes the OpenAPI contract with 51 route stubs, and delivers 7 fully interactive UI screens driven by typed mock JSON fixtures and MSW client interception.
 
 ---
 
-## 1. Overview of Phase 1 Milestones
+## 1. Executive Summary & Goals
 
-| Milestone | Title | Focus Area | Status |
+The primary objective of Phase 1 was to create a bulletproof, dual-stack engineering foundation for **AgentBreak**—an autonomous security-testing platform for AI agents. Rather than delaying user interface feedback until backend engines are fully built, Phase 1 employs a **contract-first, mock-first architecture**. 
+
+By defining the complete Pydantic v2 API contract early, exporting it to OpenAPI, and generating TypeScript types, the frontend and backend were decoupled from day one. This enabled the complete implementation and interactive testing of all 7 core UI screens (including the three core differentiators: **Permission Diff (D1)**, **Fix Price Tag (D2)**, and **Sleeper Mode (D3)**) while the sandbox execution loop was being validated.
+
+---
+
+## 2. Milestone Breakdown (M1.1 – M1.6)
+
+| Milestone | Title | Focus Area | Deliverables & Status |
 |---|---|---|---|
-| **M1.1** | **Repo & Tooling** | Python 3.11 + FastAPI + `uv` skeleton; React 18 + Vite + TypeScript + Tailwind frontend; CI, lint, and type gates | **Complete** |
-| **M1.2** | **AgentDojo Spike** | Validate package exports, execution loops, function signatures; verified V-01…V-11 | **Complete** |
-| **M1.3** | **Contract-First Schemas & Mocks** | 51 FastAPI route stubs, `openapi.json` export, generated `types.ts`, typed mock JSON fixtures | **Complete** |
-| **M1.4** | **Shell, Landing & Dashboard (Mock)** | App navigation (`layoutId`), KPI tiles, Recharts severity distribution & trend line, recent runs table | **Complete** |
-| **M1.5** | **Run Detail & Permission Diff (Mock)** | Trace replay with amber/red highlighting, PRE/POST state diff tabs, SVG attack graph, minimal permission attribution (D1) | **Complete** |
-| **M1.6** | **Fix Lab, Sleeper & Report (Mock)** | Candidate fixes table with price tags & Pareto badges (D2), multi-session sleeper timeline (D3), reproducible Markdown report & print-to-PDF styles | **Complete** |
+| **M1.1** | **Repo & Tooling Scaffold** | Python 3.11 + FastAPI + uv; React 18 + Vite + TS + Tailwind | `pyproject.toml`, `package.json`, dual-stack linters (`ruff`, `eslint`), typecheckers (`mypy`, `tsc`), CI configurations. **Complete** |
+| **M1.2** | **AgentDojo Spike** | Framework validation & package inspection | Spike script `scripts/spike_agentdojo.py` validating items V-01 through V-11 in Appendix A. **Complete** |
+| **M1.3** | **Contract-First Schemas & Mocks** | 51 FastAPI route stubs, OpenAPI export, typed mock JSON | `schemas/`, `api/`, `openapi.json`, `types.ts`, mock fixtures in `frontend/src/mocks/`. **Complete** |
+| **M1.4** | **Shell, Landing & Dashboard (Mock)** | Navigation shell, animated landing page, KPI tiles, charts | `Navbar.tsx` (`layoutId`), `LandingPage.tsx` (1-min demo modal), `DashboardPage.tsx` (Recharts). **Complete** |
+| **M1.5** | **Run Detail & Permission Diff (Mock)** | Trace replay, PRE/POST state diff, visual attack graph, D1 screen | `RunDetailPage.tsx` (stepper, vector highlighting), `PermissionsPage.tsx` (Granted vs Needed vs Excess). **Complete** |
+| **M1.6** | **Fix Lab, Sleeper & Report (Mock)** | D2 price tags, D3 sleeper timeline, reproducible report | `FixesPage.tsx` (Pareto badges), `SleeperPage.tsx` (cross-session memory diff), `ReportPage.tsx` (print-to-PDF). **Complete** |
 
 ---
 
-## 2. Technical Architecture Delivered
+## 3. System Architecture & Dual-Stack Design
 
-### 2.1 Backend Architecture (FastAPI + Pydantic v2 + uv)
-- **Dependency Management:** Managed by Astral `uv` pinned to Python 3.11 with `pyproject.toml`.
-  - Core dependencies: `agentdojo==0.1.35`, `fastapi>=0.110.0`, `pydantic>=2.6.0`, `uvicorn[standard]>=0.29.0`, `httpx>=0.27.0`.
-  - Development tools: `pytest`, `pytest-asyncio`, `ruff`, `mypy`.
-- **Package Layout:**
-  - `backend/agentbreak/__init__.py`: Package root, version `0.1.0`.
-  - `backend/agentbreak/config.py`: Environment-driven Pydantic `Settings` (SQLite DB path, host/port, CORS origins, timeouts).
-  - `backend/agentbreak/main.py`: FastAPI factory with CORS middleware, router aggregation, and `/api/v1` routes.
-  - `backend/agentbreak/cli.py`: Antigravity CLI helper with `export-openapi` command.
-- **Contract & Schemas (`backend/agentbreak/schemas/`):**
-  - `common.py`: `Health`, `Meta`, `Page[T]`.
-  - `target.py`: `Target`, `TargetCreate`, `TargetTestResult`.
-  - `suite.py`: `SuiteInfo`, `ToolInfo`, `TaskInfo`, `ScenarioSpec`, `AttackCase`.
-  - `policy.py`: `Grant`, `ArgConstraint`, `Policy`, `PolicyCreate`, `PolicyDiff`.
-  - `run.py`: `Run`, `RunCreate`, `RunSummary`, `TraceStep`, `SnapshotPair`, `Verdict`, `Evidence`.
-  - `finding.py`: `Finding`, `FindingUpdate`, `AttackGraph`, `GraphNode`, `GraphEdge`.
-  - `sleeper.py`: `SleeperRun`, `SleeperRunCreate`, `SleeperSession`.
-  - `discovery.py`: `DiscoveryCampaign`, `DiscoveryCreate`, `DiscoveryAttempt`.
-  - `audit.py`: `PermissionAudit`, `AuditCreate`, `PermissionRow`, `EnabledExploit`, `AuditProof`.
-  - `fix.py`: `FixSpec`, `FixSuggestion`, `PriceTag`, `FixEval`, `FixEvalCreate`.
-  - `dashboard.py`: `DashboardSummary`, `Report`, `ReportCreate`, `DemoStatus`, `DemoStage`, `DemoLinks`.
-- **API Router Stubs (`backend/agentbreak/api/`):**
-  - 51 endpoints returning HTTP 501 Not Implemented stubs with exact response models across 11 router modules (`system`, `targets`, `suites`, `policies`, `runs`, `sleeper`, `discovery`, `findings`, `audits`, `fixes`, `dashboard`).
-  - Active operational endpoints: `GET /api/v1/health` and `GET /api/v1/meta`.
+```mermaid
+flowchart TB
+    subgraph Backend ["Backend (Python 3.11 / FastAPI / uv)"]
+        direction TB
+        Main["FastAPI App Factory<br/>(backend/agentbreak/main.py)"]
+        Config["Settings & Config<br/>(backend/agentbreak/config.py)"]
+        Schemas["Pydantic v2 Contract<br/>(backend/agentbreak/schemas/)"]
+        APIStubs["51 Route Stubs<br/>(backend/agentbreak/api/)"]
+        CLI["CLI Helper<br/>(backend/agentbreak/cli.py)"]
+        
+        Main --> APIStubs
+        APIStubs --> Schemas
+        CLI --> Main
+    end
 
----
+    subgraph Contract ["Contract Exchange"]
+        OpenAPI["openapi.json<br/>(Exported via CLI)"]
+        GenTypes["openapi-typescript<br/>(frontend/src/api/types.ts)"]
+    end
 
-### 2.2 AgentDojo Spike Results (`scripts/spike_agentdojo.py`)
-AgentDojo version `0.1.35` was validated against the verification matrix in `PLAN.md` Appendix A:
-- **V-01 (Task Environment Factory):** `agentdojo.task_suite.task_suite.TaskSuite` exists and exposes tools, tasks, and environments.
-- **V-02 (Tools as Pydantic functions):** `agentdojo.functions_runtime.EnvTool` wraps callables with JSON schema generation.
-- **V-03 (Built-in Suites):** Stock suites (`slack`, `banking`, `workspace`, `travel`) confirmed.
-- **V-04 (Attack Injection Points):** Confirmed `task_suite` supports user injection and vector injection.
-- **V-05 (Pipeline Model Interface):** `agentdojo.agent_pipeline.agent_pipeline.AgentPipeline` and base queries confirmed.
-- **V-06 (Injection helper):** Confirmed `TaskSuite` custom environment builder is used for our custom `acme` suite.
-- **V-07 (AgentDojo Execution Loop):** `AgentPipeline.query()` returns `(extra_history, cost)` with recorded tool call history.
-- **V-08 (In-Memory Tool Isolation):** Tools mutate local in-memory dataclass state without disk leaks.
-- **V-09 (Defenses Export):** `DEFENSES` dictionary resides in `agentdojo.agent_pipeline.agent_pipeline`.
-- **V-10 (Windows uv Resolution):** 72 pure wheels resolved cleanly with 0 compilation steps.
-- **V-11 (Pre/Post Deep Copy):** Environment states support clean deepcopy for deterministic state diffing.
+    subgraph Frontend ["Frontend (React 18 / Vite / Tailwind / Framer Motion)"]
+        direction TB
+        APIClient["API Client & Mode Switcher<br/>(frontend/src/api/client.ts)"]
+        MockEngine["Mock Fixture Registry<br/>(frontend/src/mocks/)"]
+        Hooks["Declarative Hooks<br/>(useApi, usePolling)"]
+        UIPrims["Accessible UI Primitives<br/>(Button, Badge, Card, Modal)"]
+        Screens["7 Interactive Views<br/>(Landing, Dashboard, RunDetail, Permissions, Fixes, Sleeper, Report)"]
+        
+        Screens --> UIPrims
+        Screens --> Hooks
+        Hooks --> APIClient
+        APIClient -->|VITE_API_MODE=mock| MockEngine
+        APIClient -.->|VITE_API_MODE=live| Main
+    end
 
----
-
-### 2.3 Frontend Architecture (React 18 + Vite + TypeScript + Tailwind + Framer Motion)
-- **Design System & UI Components (`frontend/src/components/ui/`):**
-  - Adheres strictly to `ui-ux-suite` rules: Dark Minimalist Bento aesthetic, 8pt spacing rhythm, Framer Motion spring physics (`damping: 25`, `stiffness: 300`), accessible hit targets (min 44px), semantic CSS tokens.
-  - `Button.tsx`: Animated button with loading state, icons, and variants (`primary`, `secondary`, `outline`, `ghost`, `danger`).
-  - `Badge.tsx`: Semantic badge tokens for verdicts (`pareto`, `unauthorized`, `allowed`, `high`, `critical`, `outline`).
-  - `Card.tsx`: Dark Bento glassmorphic card with subtle borders (`border-slate-800/80`).
-  - `Modal.tsx`: Accessible dialog wrapper with `AnimatePresence` and backdrop blur.
-  - `Navbar.tsx`: Animated navigation bar with `layoutId` pill indicator, target selector, and live status badge.
-- **API Client & Mock Engine (`frontend/src/api/` & `frontend/src/mocks/`):**
-  - Generated TypeScript definitions (`frontend/src/api/types.ts`) via `openapi-typescript`.
-  - Type aliases (`frontend/src/api/models.ts`) preventing verbose nested imports.
-  - API Client (`client.ts`) with automatic mode switching:
-    - In mock mode (`VITE_API_MODE=mock`), intercepts all API requests and returns typed JSON fixtures with a simulated 150ms network delay.
-    - Custom React hook `useApi<T>(endpoint)` provides declarative loading, data, and refetch states.
-- **7 Fully Interactive UI Screens (`frontend/src/pages/`):**
-  1. **Landing (`/`):** Hero section with value proposition, animated 1-minute demo runner modal with real-time stage progression, 3 differentiator cards (D1, D2, D3), and 4-step workflow.
-  2. **Dashboard (`/dashboard`):** 4 high-level KPI tiles (ASR, Benign Pass, Open Findings, Applied Fixes), Recharts severity breakdown bar chart, trend line chart, and recent test runs table.
-  3. **Run Detail (`/runs/:runId`):** Step-by-step trace stepper highlighting canary markers and injected prompts, PRE/POST environment state diff tab, visual SVG attack graph, and one-click replay command.
-  4. **Permission Diff (`/permissions`):** D1 differentiator screen showing Granted (10) vs Needed (8) vs Excess (2) tool breakdown, expandable causal attribution rows linking permissions to enabled exploits, and counterfactual proof of utility.
-  5. **Fix Lab (`/fixes`):** D2 differentiator screen displaying candidate mitigations with two-dimensional price tags (`Attacks Blocked x/y`, `Legit Tasks Broken a/b`), Pareto-optimal badges, and Retest/Apply actions.
-  6. **Sleeper Mode (`/sleeper`):** D3 differentiator screen showing cross-session memory poisoning lifecycle across Session 1 (Plant) $\to$ Session 2 (Dormancy Gap) $\to$ Session 3 (Trigger), with side-by-side SQLite persistent memory state diffs.
-  7. **Evidence Report (`/report`):** Rendered markdown evidence report with cryptographic run hashes, deterministic verification commands, copy-to-clipboard feedback, markdown download, and clean print-to-PDF styles.
+    Backend -->|export-openapi| OpenAPI
+    OpenAPI -->|npm run gen:types| GenTypes
+    GenTypes --> Schemas
+    GenTypes --> MockEngine
+```
 
 ---
 
-## 3. How to Run & Verify Phase 1
+## 4. Backend Implementation Architecture
 
-### 3.1 Backend Quality Gates
+### 4.1 Dependency Management & Tooling
+- **Package Manager:** Astral `uv` pinned to Python 3.11 via `.python-version` and `pyproject.toml`.
+- **Core Dependencies:**
+  - `agentdojo==0.1.35`: Benchmark sandbox, tool wrapper runtime, and evaluation suites.
+  - `fastapi>=0.110.0`: High-performance asynchronous REST API framework.
+  - `pydantic>=2.6.0`: Strict data validation and schema generation (`extra="forbid"`).
+  - `uvicorn[standard]>=0.29.0`: ASGI server implementation.
+  - `httpx>=0.27.0`: High-level HTTP client for target probing and testing.
+- **Code Quality:**
+  - `ruff`: Lightning-fast linter and formatter configured for Python 3.11 conventions.
+  - `mypy`: Static type analysis in strict mode across domain models and schemas.
+
+### 4.2 Data Models & Contract Modules (`backend/agentbreak/schemas/`)
+All models enforce explicit typing, immutability conventions, and strict validation:
+- `common.py`: Operational schemas (`Health`, `Meta`, `Page[T]`).
+- `target.py`: Target entity schemas (`Target`, `TargetCreate`, `TargetTestResult`).
+- `suite.py`: Environment schemas (`SuiteInfo`, `ToolInfo`, `TaskInfo`, `ScenarioSpec`, `AttackCase`).
+- `policy.py`: Security policy domain models (`Grant`, `Constraint`, `Policy`, `PolicyCreate`, `PolicyDiff`).
+- `run.py`: Telemetry and trace schemas (`Run`, `RunCreate`, `RunSummary`, `TraceStep`, `SnapshotPair`, `Verdict`, `Evidence`).
+- `finding.py`: Vulnerability tracking schemas (`Finding`, `FindingUpdate`, `AttackGraph`, `GraphNode`, `GraphEdge`).
+- `sleeper.py`: Cross-session memory models (`SleeperRun`, `SleeperRunCreate`, `SleeperSession`).
+- `discovery.py`: Autonomous exploration schemas (`DiscoveryCampaign`, `DiscoveryCreate`, `DiscoveryAttempt`).
+- `audit.py`: Permission audit schemas (`PermissionAudit`, `AuditCreate`, `PermissionRow`, `EnabledExploit`, `AuditProof`).
+- `fix.py`: Mitigation schemas (`FixSpec`, `FixSuggestion`, `PriceTag`, `FixEval`, `FixEvalCreate`).
+- `dashboard.py`: KPI summaries and reporting (`DashboardSummary`, `Report`, `ReportCreate`, `DemoStatus`).
+
+### 4.3 Route Stubs Registry (`backend/agentbreak/api/`)
+In Phase 1, 51 endpoint stubs were implemented across 11 discrete router modules, returning HTTP 501 Not Implemented stubs with valid response models (except operational `/health` and `/meta`):
+1. `system.py`: `GET /health`, `GET /meta`.
+2. `targets.py`: CRUD operations + connectivity test stub (`POST /targets/{id}/test`).
+3. `suites.py`: Suite metadata and attack case discovery.
+4. `policies.py`: Policy CRUD and structural delta calculations.
+5. `runs.py`: Run dispatching, trace inspection, snapshot diffs, and replay stubs.
+6. `sleeper.py`: Multi-session lifecycle endpoints.
+7. `discovery.py`: Autonomous fuzzing campaign management.
+8. `findings.py`: Finding triage and attack graph aggregation.
+9. `audits.py`: Permission audit generation and counterfactual attribution stubs.
+10. `fixes.py`: Candidate fix suggestions and pricing evaluations.
+11. `dashboard.py`: High-level metrics, demo execution, and Markdown reports.
+
+---
+
+## 5. AgentDojo Spike Results (`scripts/spike_agentdojo.py`)
+
+The spike verified all assumptions regarding the third-party `agentdojo==0.1.35` package on Python 3.11 (Windows 11):
+
+| Test ID | Spike Target | Verification Result |
+|---|---|---|
+| **V-01** | `TaskSuite` Factory | Exposes `.tools`, `.user_tasks`, `.injection_tasks`, and environment loaders. |
+| **V-02** | `EnvTool` Wrapper | Wraps standard Python callables into Pydantic models with auto-generated JSON schemas. |
+| **V-03** | Built-in Suites | Built-in suites (`slack`, `banking`, `workspace`, `travel`) load cleanly. |
+| **V-04** | Attack Injection Points | Supports direct prompt injection and environment vector carriers. |
+| **V-05** | Pipeline Interface | `AgentPipeline` implements `query(prompt, runtime, env)` returning history and costs. |
+| **V-06** | Custom Environment Helper | Custom environment builder works smoothly for assembling our `acme` suite. |
+| **V-07** | Execution Loop | Tool execution history is captured immutably in message lists. |
+| **V-08** | In-Memory Isolation | Tools mutate local dataclasses in-memory with zero disk leakage. |
+| **V-09** | Built-in Defenses | `DEFENSES` dictionary resides in `agentdojo.agent_pipeline.agent_pipeline`. |
+| **V-10** | UV Resolution | 72 pure Python wheels resolved with zero local C-compilation steps. |
+| **V-11** | Deepcopy Feasibility | Environment dataclasses support `deepcopy()` for deterministic PRE/POST snapshot diffing. |
+
+---
+
+## 6. Frontend Architecture & Design System
+
+### 6.1 Design Tokens & Guidelines Compliance
+Implemented according to the **UI/UX Pro Suite Design Rules**:
+- **Aesthetic Direction:** Dark Minimalist Bento layout with subtle borders (`border-slate-800/80`) and layered elevation.
+- **8pt Grid Spacing:** All margins, paddings, and layouts adhere to the `4px`, `8px`, `12px`, `16px`, `24px`, `32px`, `48px`, `64px` scale.
+- **Typography:** Body text rendered at `16px` (`1rem`) with `1.5` line-height; titles use `text-wrap: balance`.
+- **Framer Motion Presets:** Realistic spring physics (`damping: 25`, `stiffness: 300`) on navigation tabs, cards, and modal dialogs.
+- **Accessibility & Contrast:** WCAG 2.2 AA compliant contrast (>4.5:1), explicit `aria-label` tags, focus-visible rings (`focus-visible:ring-2`), and non-color indicators (icons + badges).
+
+### 6.2 UI Components & Screen Catalog
+
+```mermaid
+graph LR
+    subgraph UIPrimitives ["UI Primitives (components/ui/)"]
+        Button["Button.tsx"]
+        Badge["Badge.tsx"]
+        Card["Card.tsx"]
+        Modal["Modal.tsx"]
+    end
+
+    subgraph Navigation ["Layout (components/layout/)"]
+        Navbar["Navbar.tsx (layoutId Pill)"]
+    end
+
+    subgraph Views ["Interactive Screens (pages/)"]
+        P1["LandingPage.tsx (/)"]
+        P2["DashboardPage.tsx (/dashboard)"]
+        P3["RunDetailPage.tsx (/runs/:id)"]
+        P4["PermissionsPage.tsx (/permissions)"]
+        P5["FixesPage.tsx (/fixes)"]
+        P6["SleeperPage.tsx (/sleeper)"]
+        P7["ReportPage.tsx (/report)"]
+    end
+
+    Navigation --> Views
+    UIPrimitives --> Views
+```
+
+1. **Landing Page (`/`):**
+   - High-impact hero section presenting AgentBreak's core value proposition.
+   - Interactive 1-minute automated demo runner modal simulating live progression across audit, exploit, fix, and retest stages.
+   - Feature highlight cards for Differentiator 1, 2, and 3.
+2. **Dashboard (`/dashboard`):**
+   - 4 high-level KPI tiles: Attack Success Rate (ASR), Benign Task Pass Rate, Open Findings, and Applied Fixes.
+   - Recharts visual charts: Severity distribution bar chart and chronological vulnerability trendline.
+   - Filterable recent runs table with execution status pills.
+3. **Run Detail (`/runs/:runId`):**
+   - Interactive chronological trace stepper with color-coded steps: amber for injected payloads, red for unauthorized actions, green for benign tool calls, slate for denied calls.
+   - Side-by-side PRE and POST environment state diff viewer.
+   - SVG-based visual attack graph linking entry vector $\to$ tool result $\to$ unauthorized action $\to$ impact.
+4. **Permission Diff (`/permissions` — D1 Screen):**
+   - Interactive breakdown of Granted (10 tools) vs Needed (8 tools) vs Excess (2 tools).
+   - Counterfactual attribution table linking individual permissions directly to enabled exploit cases.
+   - Proof of utility confirmation that legitimate workflows pass under the minimal policy.
+5. **Fix Lab (`/fixes` — D2 Screen):**
+   - Candidate mitigations catalog (e.g. removing excess permissions, restricting argument domains).
+   - Two-dimensional price tags (`Attacks Blocked x/y`, `Legit Tasks Broken a/b`).
+   - Pareto-optimal badges highlighting non-dominated fixes.
+6. **Sleeper Mode (`/sleeper` — D3 Screen):**
+   - Multi-session timeline visualizing cross-session memory poisoning: Session 1 (Plant) $\to$ Session 2 (Dormancy Gap) $\to$ Session 3 (Trigger).
+   - Side-by-side memory state diff showing persistent payload survival across clean environment resets.
+7. **Evidence Report (`/report`):**
+   - Reproducible audit report rendered in GitHub-flavored Markdown.
+   - Cryptographic run hashes and deterministic CLI replay commands.
+   - One-click copy-to-clipboard, markdown file download, and clean print-to-PDF styles.
+
+---
+
+## 7. Quality Gate Execution & Verification
+
+### 7.1 Backend Quality Gates
 ```bash
-# 1. Run unit tests
+# 1. Run unit test suite
 uv run pytest
 
-# 2. Run linter and formatting check
+# 2. Run Ruff linter and code formatter
 uv run ruff check .
 uv run ruff format --check .
 
-# 3. Run type check
+# 3. Static type analysis in strict mode
 uv run mypy backend/agentbreak
 
-# 4. Verify OpenAPI contract export
+# 4. Export OpenAPI schema and verify contract stability
 uv run python -m agentbreak.cli export-openapi --output openapi.json
 ```
 
-### 3.2 Frontend Quality Gates
+### 7.2 Frontend Quality Gates
 ```bash
 cd frontend
 
-# 1. TypeScript type check
+# 1. TypeScript static compilation check
 npm run typecheck
 
-# 2. ESLint code analysis
+# 2. ESLint code quality analysis
 npm run lint
 
-# 3. Unit test suite
+# 3. Vitest unit and smoke test suite
 npm test
 
-# 4. Production build
+# 4. Production bundle build
 npm run build
 ```
 
-### 3.3 Running the Interactive Frontend Demo (Mock Mode)
+### 7.3 Running the Interactive Frontend in Mock Mode
 ```bash
 cd frontend
 npm run dev:mock
 ```
-Visit `http://localhost:5173` to explore all 7 screens with instant response and realistic mock data.
+Navigate to `http://localhost:5173` to explore all 7 interactive screens powered by typed mock JSON fixtures.
 
 ---
 
-## 4. Next Steps for Contributors (Phase 2)
+## 8. Directory & File Map of Phase 1 Deliverables
 
-With Phase 1 complete, the next phase is **Phase 2: Data model and policies** (milestones M2.1 through M2.4):
-1. **M2.1 (SQLite schema & migration runner):** Create `backend/agentbreak/db.py` and `schema.sql` implementing tables for targets, policies, grants, runs, traces, snapshots, findings, and fix evaluations.
-2. **M2.2 (Repository layer):** Implement repository classes in `backend/agentbreak/repo/` with clean CRUD queries and WAL mode transactions.
-3. **M2.3 (Policy engine & hashing):** Implement canonical grant serialization and SHA-256 policy hashing in `backend/agentbreak/domain/policy.py`.
-4. **M2.4 (Acme sandbox suite & tools):** Implement the custom Acme Corporation environment with 10 tools and benign tasks BT-01 through BT-10 using AgentDojo primitives.
+```
+backend/
+├── pyproject.toml                         # Project configuration, dependencies, and tools
+├── openapi.json                           # Frozen API contract exported via CLI
+├── agentbreak/
+│   ├── __init__.py                        # Package root (version 0.1.0)
+│   ├── config.py                          # Pydantic Settings (environment configuration)
+│   ├── main.py                            # FastAPI application factory and router mounting
+│   ├── cli.py                             # CLI utility (export-openapi)
+│   ├── schemas/                           # Pydantic v2 contract schemas
+│   │   ├── common.py, target.py, suite.py, policy.py, run.py, finding.py,
+│   │   ├── sleeper.py, discovery.py, audit.py, fix.py, dashboard.py
+│   └── api/                               # 51 route stubs across 11 modules
+│       ├── system.py, targets.py, suites.py, policies.py, runs.py,
+│       ├── sleeper.py, discovery.py, findings.py, audits.py, fixes.py, dashboard.py
+scripts/
+└── spike_agentdojo.py                     # AgentDojo validation spike script (V-01..V-11)
+frontend/
+├── package.json, vite.config.ts, tsconfig.json, tailwind.config.js
+├── src/
+│   ├── main.tsx, App.tsx, index.css
+│   ├── api/
+│   │   ├── types.ts                       # Generated TypeScript definitions from openapi.json
+│   │   ├── models.ts                      # Type aliases and convenience helpers
+│   │   └── client.ts                      # API client with VITE_API_MODE mock interceptor
+│   ├── mocks/                             # Typed mock JSON fixtures matching types.ts
+│   ├── components/
+│   │   ├── ui/                            # Button, Badge, Card, Modal primitives
+│   │   └── layout/                        # Navbar with layoutId spring indicator
+│   └── pages/                             # 7 interactive mock-backed application pages
+│       ├── LandingPage.tsx, DashboardPage.tsx, RunDetailPage.tsx,
+│       ├── PermissionsPage.tsx, FixesPage.tsx, SleeperPage.tsx, ReportPage.tsx
+```

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -41,7 +41,7 @@ class ScenarioSpec(BaseModel):
     description: str
     vector: str
     predicate: str
-    severity: str
+    severity: Literal["critical", "high", "medium", "low", "none"]
     impact_class: str
     model_config = {"extra": "forbid"}
 

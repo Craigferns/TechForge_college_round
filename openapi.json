@@ -4674,6 +4674,13 @@
           },
           "severity": {
             "type": "string",
+            "enum": [
+              "critical",
+              "high",
+              "medium",
+              "low",
+              "none"
+            ],
             "title": "Severity"
           },
           "impact_class": {

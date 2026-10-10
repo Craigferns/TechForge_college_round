@@ -82,6 +82,169 @@ def seed_cmd() -> None:
     )
 
 
+def run_cmd(target_name: str, case_id: str, policy_name: str | None = None) -> None:
+    """Execute a single attack case evaluation run via CLI."""
+    import uuid
+
+    from agentbreak.attacks.scenarios import get_attack_case
+    from agentbreak.config import get_settings
+    from agentbreak.db import get_connection, migrate
+    from agentbreak.engine.runner import execute_run, utc_now_iso
+    from agentbreak.repo.policy_repo import PolicyRepo
+    from agentbreak.repo.run_repo import RunRepo
+    from agentbreak.repo.target_repo import TargetRepo
+    from agentbreak.schemas.run import Run
+    from agentbreak.seed import seed_database
+
+    settings = get_settings()
+    conn = get_connection(settings.db_path)
+    migrate(conn)
+    seed_database(conn)
+
+    target_repo = TargetRepo(conn)
+    policy_repo = PolicyRepo(conn)
+    run_repo = RunRepo(conn)
+
+    # 1. Resolve Target
+    target_model = target_repo.get(target_name)
+    if not target_model:
+        # Search by prefix or normalized name
+        norm_name = target_name.replace("-", "_")
+        for t in target_repo.list():
+            if (
+                t.id == target_name
+                or t.id == f"tgt_{norm_name}"
+                or norm_name in t.id
+                or target_name.lower() in t.name.lower()
+            ):
+                target_model = t
+                break
+    if not target_model:
+        print(f"Error: Target '{target_name}' could not be resolved.")
+        sys.exit(1)
+
+    # 2. Resolve Policy
+    pol_id = policy_name or "pol_full"
+    policy_model = policy_repo.get(pol_id)
+    if not policy_model:
+        for p in policy_repo.list():
+            if p.id == pol_id or pol_id in p.name.lower():
+                policy_model = p
+                break
+    if not policy_model:
+        print(f"Error: Policy '{pol_id}' could not be resolved.")
+        sys.exit(1)
+
+    # 3. Resolve Attack Case
+    try:
+        case = get_attack_case(case_id)
+    except KeyError:
+        print(f"Error: Unknown attack case ID '{case_id}'.")
+        sys.exit(1)
+
+    run_id = f"run_{uuid.uuid4().hex[:12]}"
+    run = Run(
+        id=run_id,
+        kind="attack",
+        target_id=target_model.id,
+        policy_id=policy_model.id,
+        suite="acme",
+        case_id=case.id,
+        scenario_id=case.scenario_id,
+        user_task_id=case.carrier_task_id,
+        injection_task_id=case.injection_task_id,
+        template_id="authority_note",
+        origin="static",
+        status="queued",
+        repro={
+            "suite_hash": "sha256:acme",
+            "target_id": target_model.id,
+            "policy_id": policy_model.id,
+            "case_id": case.id,
+        },
+        created_at=utc_now_iso(),
+    )
+    run_repo.create(run)
+
+    # 4. Execute Run
+    completed_run = execute_run(run_id, conn=conn)
+    trace_steps = run_repo.get_trace(run_id)
+
+    print("=" * 60)
+    print(f"Run ID:      {completed_run.id}")
+    print(f"Target:      {target_model.name} ({target_model.id})")
+    print(f"Case:        {case.id} ({case.scenario_id})")
+    print(f"Status:      {completed_run.status}")
+    print(f"Utility:     {completed_run.utility}")
+    print(f"Security:    {completed_run.security}")
+    print(f"Step Count:  {len(trace_steps)}")
+    if completed_run.error:
+        print(f"Error:       {completed_run.error}")
+    print("=" * 60)
+
+
+def sleeper_cmd(target_name: str, case_id: str = "AS-05", policy_name: str | None = None) -> None:
+    """Execute a multi-session sleeper evaluation run via CLI."""
+    from agentbreak.config import get_settings
+    from agentbreak.db import get_connection, migrate
+    from agentbreak.engine.sleeper import execute_sleeper_run
+    from agentbreak.repo.policy_repo import PolicyRepo
+    from agentbreak.repo.target_repo import TargetRepo
+    from agentbreak.schemas.sleeper import SleeperRunCreate
+    from agentbreak.seed import seed_database
+
+    settings = get_settings()
+    conn = get_connection(settings.db_path)
+    migrate(conn)
+    seed_database(conn)
+
+    target_repo = TargetRepo(conn)
+    policy_repo = PolicyRepo(conn)
+
+    target_model = target_repo.get(target_name)
+    if not target_model:
+        norm_name = target_name.replace("-", "_")
+        for t in target_repo.list():
+            if (
+                t.id == target_name
+                or t.id == f"tgt_{norm_name}"
+                or norm_name in t.id
+                or target_name.lower() in t.name.lower()
+            ):
+                target_model = t
+                break
+    if not target_model:
+        print(f"Error: Target '{target_name}' could not be resolved.")
+        sys.exit(1)
+
+    pol_id = policy_name or "pol_full"
+    policy_model = policy_repo.get(pol_id)
+    if not policy_model:
+        for p in policy_repo.list():
+            if p.id == pol_id or pol_id in p.name.lower():
+                policy_model = p
+                break
+    if not policy_model:
+        print(f"Error: Policy '{pol_id}' could not be resolved.")
+        sys.exit(1)
+
+    sleeper_create = SleeperRunCreate(
+        target_id=target_model.id,
+        policy_id=policy_model.id,
+        case_id=case_id,
+        gap_sessions=1,
+    )
+    result = execute_sleeper_run(sleeper_create, conn=conn)
+
+    print("=" * 60)
+    print(f"Sleeper Run ID:  {result.id}")
+    print(f"Target:          {target_model.name} ({target_model.id})")
+    print(f"Status:          {result.status}")
+    print(f"Outcome:         {result.outcome}")
+    print(f"Sessions Count:  {len(result.sessions)}")
+    print("=" * 60)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="AgentBreak CLI")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -110,6 +273,46 @@ def main() -> None:
 
     subparsers.add_parser("seed", help="Seed default targets and security policies")
 
+    run_parser = subparsers.add_parser("run", help="Execute an evaluation attack case")
+    run_parser.add_argument(
+        "--target",
+        type=str,
+        default="tgt_demo_scripted",
+        help="Target ID or alias (default: tgt_demo_scripted)",
+    )
+    run_parser.add_argument(
+        "--case",
+        type=str,
+        required=True,
+        help="Attack case ID (e.g. AS-01..AS-07)",
+    )
+    run_parser.add_argument(
+        "--policy",
+        type=str,
+        default="pol_full",
+        help="Policy ID (default: pol_full)",
+    )
+
+    sleeper_parser = subparsers.add_parser("sleeper", help="Execute a sleeper agent evaluation")
+    sleeper_parser.add_argument(
+        "--target",
+        type=str,
+        default="tgt_demo_scripted",
+        help="Target ID or alias (default: tgt_demo_scripted)",
+    )
+    sleeper_parser.add_argument(
+        "--case",
+        type=str,
+        default="AS-05",
+        help="Attack case ID (default: AS-05)",
+    )
+    sleeper_parser.add_argument(
+        "--policy",
+        type=str,
+        default="pol_full",
+        help="Policy ID (default: pol_full)",
+    )
+
     args = parser.parse_args()
 
     if args.command == "export-openapi":
@@ -118,6 +321,10 @@ def main() -> None:
         check_suite(args.suite)
     elif args.command == "seed":
         seed_cmd()
+    elif args.command == "run":
+        run_cmd(target_name=args.target, case_id=args.case, policy_name=args.policy)
+    elif args.command == "sleeper":
+        sleeper_cmd(target_name=args.target, case_id=args.case, policy_name=args.policy)
     else:
         parser.print_help()
         sys.exit(1)

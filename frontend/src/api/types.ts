@@ -1690,8 +1690,11 @@ export interface components {
             vector: string;
             /** Predicate */
             predicate: string;
-            /** Severity */
-            severity: string;
+            /**
+             * Severity
+             * @enum {string}
+             */
+            severity: "critical" | "high" | "medium" | "low" | "none";
             /** Impact Class */
             impact_class: string;
         };

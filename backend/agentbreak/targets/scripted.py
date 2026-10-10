@@ -189,7 +189,18 @@ class ScriptedTarget(BaseTarget):
         profile: AgentProfile | None = None,
     ) -> None:
         super().__init__(id=id, name=name, kind="scripted", config=config or {})
-        self.profile = profile or AgentProfile()
+        if profile is not None:
+            self.profile = profile
+        elif config:
+            obeys_cfg = config.get("obeys")
+            obeys = frozenset(obeys_cfg) if obeys_cfg is not None else None
+            self.profile = AgentProfile(
+                obeys=obeys,
+                memory_bootstrap=bool(config.get("memory_bootstrap", True)),
+                says_only=bool(config.get("says_only", False)),
+            )
+        else:
+            self.profile = AgentProfile()
 
     def build_pipeline(self, runtime: FunctionsRuntime, env: Any) -> BasePipelineElement:
         return ScriptedAgent(profile=self.profile)

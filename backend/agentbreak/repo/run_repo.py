@@ -154,6 +154,46 @@ class RunRepo:
             )
         return summaries
 
+    def count_runs(
+        self,
+        target_id: str | None = None,
+        policy_id: str | None = None,
+        kind: str | None = None,
+        status: str | None = None,
+        scenario_id: str | None = None,
+        ids: list[str] | None = None,
+    ) -> int:
+        """Count total runs matching filter criteria."""
+        clauses = []
+        params: list[Any] = []
+
+        if target_id:
+            clauses.append("r.target_id = ?")
+            params.append(target_id)
+        if policy_id:
+            clauses.append("r.policy_id = ?")
+            params.append(policy_id)
+        if kind:
+            clauses.append("r.kind = ?")
+            params.append(kind)
+        if status:
+            clauses.append("r.status = ?")
+            params.append(status)
+        if scenario_id:
+            clauses.append("r.scenario_id = ?")
+            params.append(scenario_id)
+        if ids:
+            placeholders = ",".join("?" for _ in ids)
+            clauses.append(f"r.id IN ({placeholders})")
+            params.extend(ids)
+
+        where_clause = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+        sql = f"SELECT COUNT(*) AS total FROM run r {where_clause};"
+        cursor = self.conn.cursor()
+        cursor.execute(sql, params)
+        row = cursor.fetchone()
+        return int(row["total"]) if row else 0
+
     def update_status(
         self,
         run_id: str,

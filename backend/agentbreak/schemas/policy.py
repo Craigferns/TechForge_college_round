@@ -12,6 +12,9 @@ class ArgConstraint(BaseModel):
     model_config = {"extra": "forbid"}
 
 
+Constraint = ArgConstraint
+
+
 class Grant(BaseModel):
     tool: str
     constraints: list[ArgConstraint] = Field(default_factory=list)

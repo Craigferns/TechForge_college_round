@@ -1,6 +1,5 @@
-"""FastAPI application entry point for AgentBreak."""
-
-from __future__ import annotations
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -19,6 +18,20 @@ from agentbreak.api import (
     targets,
 )
 from agentbreak.config import get_settings
+from agentbreak.db import get_connection, migrate
+from agentbreak.engine.jobs import get_job_pool, reset_job_pool
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+    """Application lifecycle context manager performing startup recovery and clean shutdown."""
+    settings = get_settings()
+    conn = get_connection(settings.db_path)
+    migrate(conn)
+    get_job_pool().startup_recovery(conn)
+    conn.close()
+    yield
+    reset_job_pool()
 
 
 def create_app() -> FastAPI:
@@ -31,6 +44,7 @@ def create_app() -> FastAPI:
         description="Autonomous security-testing platform for tool-using AI agents",
         docs_url="/docs",
         redoc_url="/redoc",
+        lifespan=lifespan,
     )
 
     app.add_middleware(
